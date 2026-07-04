@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('pamp', {
   startService: (toolId) => ipcRenderer.invoke('service:start', toolId),
   stopService: (toolId) => ipcRenderer.invoke('service:stop', toolId),
   getLogs: (toolId) => ipcRenderer.invoke('logs:get', toolId),
+  clearLogs: (toolId) => ipcRenderer.invoke('logs:clear', toolId),
   pathStatus: () => ipcRenderer.invoke('path:status'),
   pathSetup: () => ipcRenderer.invoke('path:setup'),
   getSettings: () => ipcRenderer.invoke('settings:get'),

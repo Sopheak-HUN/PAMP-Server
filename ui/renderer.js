@@ -39,6 +39,8 @@ const I18N = {
     noActiveVersion: 'no active version',
     running: 'Running',
     stopped: 'Stopped',
+    startingState: 'Starting...',
+    errorState: 'Error',
     external: 'external',
     start: 'Start',
     stop: 'Stop',
@@ -54,6 +56,8 @@ const I18N = {
     installHint: 'Download a Windows build of {name}, extract it into a subfolder of the directory above (e.g. {dir}\\8.3.1\\), then click Refresh and press "Use".',
     logs: 'Logs',
     follow: 'Follow',
+    clearLogs: 'Clear',
+    logsCleared: '{name} logs cleared.',
     nowUsing: '{name}: now using {v}',
     starting: 'Starting {name}…',
     stopping: 'Stopping {name}…',
@@ -112,6 +116,8 @@ const I18N = {
     noActiveVersion: 'គ្មានកំណែសកម្ម',
     running: 'កំពុងដំណើរការ',
     stopped: 'បានឈប់',
+    startingState: 'កំពុងចាប់ផ្តើម...',
+    errorState: 'កំហុស',
     external: 'ខាងក្រៅ',
     start: 'ចាប់ផ្តើម',
     stop: 'បញ្ឈប់',
@@ -127,6 +133,8 @@ const I18N = {
     installHint: 'ទាញយក {name} កំណែ Windows រួចពន្លាចូលក្នុងថតរងនៃថតខាងលើ (ឧ. {dir}\\8.3.1\\) បន្ទាប់មកចុច "ផ្ទុកឡើងវិញ" រួចចុច "ប្រើ"។',
     logs: 'កំណត់ហេតុ',
     follow: 'តាមដាន',
+    clearLogs: 'សម្អាត',
+    logsCleared: 'បានសម្អាតកំណត់ហេតុ {name}។',
     nowUsing: '{name}៖ ឥឡូវកំពុងប្រើ {v}',
     starting: 'កំពុងចាប់ផ្តើម {name}…',
     stopping: 'កំពុងបញ្ឈប់ {name}…',
@@ -173,6 +181,14 @@ function t(key, vars) {
   return s;
 }
 
+function stateLabel(stateName) {
+  if (stateName === 'running') return t('running');
+  if (stateName === 'stopped') return t('stopped');
+  if (stateName === 'starting') return t('startingState');
+  if (stateName === 'error') return t('errorState');
+  return stateName;
+}
+
 /* ---------------- helpers ---------------- */
 
 const $ = (sel, el) => (el || document).querySelector(sel);
@@ -186,12 +202,20 @@ function toast(msg, kind) {
 }
 
 function h(tag, attrs, ...children) {
-  const el = document.createElement(tag);
+  const svgTags = ['svg', 'path', 'circle', 'rect', 'line', 'polygon', 'polyline', 'ellipse', 'g'];
+  const el = svgTags.includes(tag)
+    ? document.createElementNS('http://www.w3.org/2000/svg', tag)
+    : document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
-    if (k === 'class') el.className = v;
-    else if (k === 'text') el.textContent = v;
-    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (v !== null && v !== undefined) el.setAttribute(k, v);
+    if (k === 'class') {
+      el.setAttribute('class', v);
+    } else if (k === 'text') {
+      el.textContent = v;
+    } else if (k.startsWith('on')) {
+      el.addEventListener(k.slice(2), v);
+    } else if (v !== null && v !== undefined) {
+      el.setAttribute(k, v);
+    }
   }
   for (const c of children) {
     if (c === null || c === undefined || c === false) continue;
@@ -215,6 +239,26 @@ function renderToolBadge(tl, sizeClass = '') {
   );
 }
 
+function renderSettingsIcon(sizeClass = '') {
+  const isLg = sizeClass.includes('lg');
+  const size = isLg ? 20 : 13;
+  return h('svg', {
+    class: `icon-gear ${sizeClass}`.trim(),
+    width: String(size),
+    height: String(size),
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '2.5',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+    style: isLg ? '' : 'display: inline-block; vertical-align: -1px; margin-right: 6px;'
+  },
+    h('circle', { cx: '12', cy: '12', r: '3' }),
+    h('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })
+  );
+}
+
 /* ---------------- settings ---------------- */
 
 function applyTheme() {
@@ -230,7 +274,8 @@ function renderStatic() {
   pathBtn.textContent = t('addToPath');
   pathBtn.title = t('addToPathTitle');
   $('#btn-refresh').textContent = t('refresh');
-  $('#btn-settings').textContent = `⚙ ${t('settingsTitle')}`;
+  const btn = $('#btn-settings');
+  btn.replaceChildren(renderSettingsIcon(), document.createTextNode(t('settingsTitle')));
 }
 
 async function saveSettings(patch) {
@@ -342,7 +387,7 @@ function renderSettings(root) {
   root.replaceChildren(
     h('div', { class: 'detail-header' },
       h('div', { class: 'detail-title' },
-        h('span', { class: 'tool-badge lg', text: '⚙', style: '--accent:#8b93a7' }),
+        h('span', { class: 'tool-badge lg', style: '--accent:#8b93a7' }, renderSettingsIcon('lg')),
         h('div', {},
           h('h1', { text: t('settingsTitle') }),
           h('div', { class: 'detail-sub' }, h('span', { text: t('settingsSub') }))))),
@@ -378,8 +423,8 @@ function renderSidebar() {
         h('span', { class: 'tool-item-name', text: tl.name }),
         h('span', { class: 'tool-item-sub', text: tl.activeVersion ? `v${tl.activeVersion}` : t('noVersion') })),
       tl.kind === 'service'
-        ? h('span', { class: `dot ${st && st.state === 'running' ? 'on' : 'off'}`,
-            title: st && st.state === 'running' ? t('running') : t('stopped') })
+        ? h('span', { class: `dot ${st ? st.state : 'stopped'}`,
+            title: st ? stateLabel(st.state) : t('stopped') })
         : h('span', { class: 'dot none' })
     );
     nav.appendChild(item);
@@ -414,9 +459,9 @@ function renderDashboard(root) {
         )
       ),
       h('div', { class: 'dashboard-card-status' },
-        h('span', { class: `state-pill ${running ? 'on' : 'off'}` },
-          h('span', { class: `dot ${running ? 'on' : 'off'}` }),
-          running ? t('running') : t('stopped')
+        h('span', { class: `state-pill ${st ? st.state : 'stopped'}` },
+          h('span', { class: `dot ${st ? st.state : 'stopped'}` }),
+          st ? stateLabel(st.state) : t('stopped')
         ),
         running && st.port && h('span', { class: 'chip ok', text: `Port: ${st.port}` })
       ),
@@ -505,10 +550,15 @@ function renderDetail() {
           tl.activeVersion ? h('span', { class: 'chip', text: t('activeV', { v: tl.activeVersion }) })
                            : h('span', { class: 'chip warn', text: t('noActiveVersion') })))),
     h('div', { class: 'detail-actions' },
-      tl.kind === 'service' && h('span', { class: `state-pill ${running ? 'on' : 'off'}` },
-        h('span', { class: 'dot ' + (running ? 'on' : 'off') }),
-        running ? `${t('running')}${st.pid ? ` · pid ${st.pid}` : ''}${st.managed === false ? ` · ${t('external')}` : ''}`
-                : t('stopped')),
+      tl.kind === 'service' && h('span', { class: `state-pill ${st ? st.state : 'stopped'}` },
+        h('span', { class: `dot ${st ? st.state : 'stopped'}` }),
+        st && st.state === 'running'
+          ? `${t('running')}${st.pid ? ` · pid ${st.pid}` : ''}${st.managed === false ? ` · ${t('external')}` : ''}`
+          : st && st.state === 'starting'
+            ? t('starting', { name: tl.name })
+            : st && st.state === 'error'
+              ? `${t('errorState')} (Exit Code: ${st.code})`
+              : t('stopped')),
       tl.kind === 'service' && h('button', {
         class: `btn ${running ? 'btn-danger' : 'btn-primary'}`,
         onclick: () => (running ? stopService(tl.id) : startService(tl.id)),
@@ -553,19 +603,22 @@ function renderDetail() {
     ? h('section', { class: 'card grow' },
         h('div', { class: 'card-head' },
           h('h2', { text: t('logs') }),
-          h('label', { class: 'follow' },
-            h('input', { type: 'checkbox', checked: state.logsFollow ? 'checked' : null,
-              onchange: (e) => { state.logsFollow = e.target.checked; } }),
-            t('follow'))),
-        h('div', { class: 'terminal-window' },
-          h('div', { class: 'terminal-header' },
-            h('div', { class: 'terminal-dots' },
-              h('span', { class: 'terminal-dot red' }),
-              h('span', { class: 'terminal-dot yellow' }),
-              h('span', { class: 'terminal-dot green' })),
-            h('span', { class: 'terminal-title', text: `${tl.name} Output Stream` }),
-            h('span', { style: 'width: 42px' })),
-          h('pre', { id: 'log-view', class: 'logs' })))
+          h('div', { style: 'display: flex; align-items: center; gap: 14px;' },
+            h('label', { class: 'follow' },
+              h('input', { type: 'checkbox', checked: state.logsFollow ? 'checked' : null,
+                onchange: (e) => { state.logsFollow = e.target.checked; } }),
+              t('follow')),
+            h('button', {
+              class: 'btn btn-small btn-ghost',
+              text: t('clearLogs'),
+              onclick: async () => {
+                await window.pamp.clearLogs(tl.id);
+                const view = $('#log-view');
+                if (view) view.textContent = '';
+                toast(t('logsCleared', { name: tl.name }), 'ok');
+              }
+            }))),
+        h('pre', { id: 'log-view', class: 'logs' }))
     : null;
 
   root.replaceChildren(...[header, versionsCard, downloadCard, logsCard].filter(Boolean));
@@ -706,8 +759,12 @@ async function refreshStatusOnly() {
   const tl = tool(state.selected);
   if (tl && tl.kind === 'service') {
     const pill = $('.state-pill');
-    const running = state.status[tl.id] && state.status[tl.id].state === 'running';
-    if (pill && pill.classList.contains('on') !== running) renderDetail();
+    if (pill) {
+      const currentState = state.status[tl.id] ? state.status[tl.id].state : 'stopped';
+      if (!pill.classList.contains(currentState)) {
+        renderDetail();
+      }
+    }
   }
 }
 

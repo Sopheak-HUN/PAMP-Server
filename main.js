@@ -127,6 +127,10 @@ function serviceOpts() {
 ipcMain.handle('service:start', async (_e, toolId) => services.start(ROOT, effectiveTool(toolId), serviceOpts()));
 ipcMain.handle('service:stop', async (_e, toolId) => services.stop(ROOT, effectiveTool(toolId)));
 ipcMain.handle('logs:get', async (_e, toolId) => services.getLogs(toolId));
+ipcMain.handle('logs:clear', async (_e, toolId) => {
+  services.clearLogs(toolId);
+  return true;
+});
 
 ipcMain.handle('path:status', async () => pathMgr.getStatus(ROOT, TOOLS));
 ipcMain.handle('path:setup', async () => pathMgr.setup(ROOT, TOOLS));

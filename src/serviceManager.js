@@ -8,8 +8,9 @@ const versions = require('./versionManager');
 
 const LOG_CAP = 500;
 
-// toolId -> { proc, startedAt }
 const running = new Map();
+// toolId -> { code, timestamp }
+const serviceErrors = new Map();
 // toolId -> [{ ts, line }]
 const logBuffers = new Map();
 
@@ -28,6 +29,10 @@ function log(toolId, line) {
 
 function getLogs(toolId) {
   return logBuffers.get(toolId) || [];
+}
+
+function clearLogs(toolId) {
+  logBuffers.set(toolId, []);
 }
 
 function checkPort(port) {
@@ -57,12 +62,19 @@ function findPidByPort(port) {
 async function getStatus(tool) {
   const rec = running.get(tool.id);
   if (rec && rec.proc.exitCode === null) {
+    if (Date.now() - rec.startedAt < 2500) {
+      return { state: 'starting', managed: true, pid: rec.proc.pid, port: rec.port || tool.port };
+    }
     return { state: 'running', managed: true, pid: rec.proc.pid, port: rec.port || tool.port };
   }
   const open = await checkPort(tool.port);
   if (open) {
     const pid = await findPidByPort(tool.port);
     return { state: 'running', managed: false, pid, port: tool.port };
+  }
+  const lastErr = serviceErrors.get(tool.id);
+  if (lastErr && (Date.now() - lastErr.timestamp < 15000)) {
+    return { state: 'error', managed: false, pid: null, port: tool.port, code: lastErr.code };
   }
   return { state: 'stopped', managed: false, pid: null, port: tool.port };
 }
@@ -149,12 +161,16 @@ async function start(root, tool, opts = {}) {
 
   log(tool.id, `Starting: ${exe} ${args.join(' ')}`);
   const proc = spawn(exe, args, { cwd, windowsHide: true });
+  serviceErrors.delete(tool.id);
   proc.stdout.on('data', (d) => d.toString().split(/\r?\n/).forEach((l) => log(tool.id, l)));
   proc.stderr.on('data', (d) => d.toString().split(/\r?\n/).forEach((l) => log(tool.id, l)));
   proc.on('error', (err) => log(tool.id, `Process error: ${err.message}`));
   proc.on('exit', (code) => {
     log(tool.id, `Process exited with code ${code}.`);
     running.delete(tool.id);
+    if (code !== 0 && code !== null) {
+      serviceErrors.set(tool.id, { code, timestamp: Date.now() });
+    }
   });
   // exe/cwd/port are remembered so stop and status target the instance that
   // was actually started, even if the user switches the active version or
@@ -236,4 +252,4 @@ async function stop(root, tool) {
   return getStatus(tool);
 }
 
-module.exports = { start, stop, getStatus, getLogs, onLog };
+module.exports = { start, stop, getStatus, getLogs, clearLogs, onLog };
