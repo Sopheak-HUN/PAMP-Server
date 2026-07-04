@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>PAMP — Dev Stack Control Panel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="brand">
+        <div class="brand-logo">P</div>
+        <div>
+          <div class="brand-name">PAMP</div>
+          <div class="brand-sub">Dev Stack Control</div>
+        </div>
+      </div>
+      <nav id="tool-list"></nav>
+      <div class="sidebar-footer">
+        <button id="btn-path-setup" class="btn btn-ghost" title="Add all current-version folders to your user PATH">
+          Add tools to PATH
+        </button>
+        <button id="btn-refresh" class="btn btn-ghost">Refresh</button>
+        <button id="btn-settings" class="btn btn-ghost">⚙ Settings</button>
+      </div>
+    </aside>
+
+    <main id="main">
+      <div id="detail" class="empty">
+        <p>Loading…</p>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "name": "pamp",
+  "version": "0.1.0",
+  "description": "PAMP - portable dev stack version manager and service control panel for Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.turbotech.pamp",
+    "productName": "PAMP",
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**",
+      "ui/**"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "PAMP-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "PAMP-${version}-setup.exe"
+    }
+  },
+  "author": "PAMP",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}
