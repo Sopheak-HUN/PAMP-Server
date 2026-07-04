@@ -16,3 +16,6 @@ npm-debug.log*
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+bin/
+data/

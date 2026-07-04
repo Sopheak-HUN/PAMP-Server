@@ -4,8 +4,10 @@
   "description": "PAMP - portable dev stack version manager and service control panel for Windows",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --win"
+    "build:css": "npx @tailwindcss/cli -i ui/input.css -o ui/styles.css",
+    "watch:css": "npx @tailwindcss/cli -i ui/input.css -o ui/styles.css --watch",
+    "start": "npm run build:css && electron .",
+    "dist": "npm run build:css && electron-builder --win"
   },
   "build": {
     "appId": "com.turbotech.pamp",
@@ -18,6 +20,7 @@
       "ui/**"
     ],
     "win": {
+      "icon": "ui/logo.ico",
       "target": [
         "portable",
         "nsis"
@@ -35,6 +38,7 @@
   "author": "PAMP",
   "license": "MIT",
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.2",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3"
   }

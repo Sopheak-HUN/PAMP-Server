@@ -20,7 +20,7 @@ const state = {
 const I18N = {
   en: {
     brandSub: 'Dev Stack Control',
-    addToPath: 'Add tools to PATH',
+    addToPath: 'Add to PATH',
     addToPathTitle: 'Add all current-version folders to your user PATH',
     refresh: 'Refresh',
     settingsTitle: 'Settings',
@@ -93,7 +93,7 @@ const I18N = {
   },
   km: {
     brandSub: 'ផ្ទាំងគ្រប់គ្រង Dev Stack',
-    addToPath: 'បន្ថែមឧបករណ៍ទៅ PATH',
+    addToPath: 'បន្ថែមទៅ PATH',
     addToPathTitle: 'បន្ថែមថតកំណែសកម្មទាំងអស់ទៅ PATH របស់អ្នក',
     refresh: 'ផ្ទុកឡើងវិញ',
     settingsTitle: 'ការកំណត់',
@@ -208,6 +208,13 @@ function statusOf(id) {
   return state.status[id] || null;
 }
 
+function renderToolBadge(tl, sizeClass = '') {
+  const isLg = sizeClass.includes('lg');
+  return h('span', { class: `tool-badge has-logo ${sizeClass}`.trim(), style: `--accent:${tl.accent}` },
+    h('img', { src: `logos/${tl.id}.svg`, alt: tl.badge, class: `tool-logo-img ${isLg ? 'lg' : ''}`.trim() })
+  );
+}
+
 /* ---------------- settings ---------------- */
 
 function applyTheme() {
@@ -309,12 +316,20 @@ function renderSettings(root) {
       ...state.tools.filter((x) => x.kind === 'service').map((svc) =>
         h('div', { class: 'setting-row' },
           h('div', { class: 'setting-label' },
-            h('span', { class: 'tool-badge', text: svc.badge, style: `--accent:${svc.accent}` }),
+            renderToolBadge(svc),
             svc.name),
           h('input', {
-            type: 'number', class: 'port-input', min: '1', max: '65535',
+            type: 'text', class: 'port-input',
+            inputmode: 'numeric', pattern: '[0-9]*',
             value: String((s.ports && s.ports[svc.id]) || svc.port),
             onchange: (e) => savePort(svc.id, e.target.value),
+            oninput: (e) => { e.target.value = e.target.value.replace(/\D/g, ''); },
+            onfocus: (e) => {
+              const input = e.target;
+              setTimeout(() => {
+                input.setSelectionRange(input.value.length, input.value.length);
+              }, 0);
+            },
           })))),
   ];
 
@@ -357,8 +372,8 @@ function renderSidebar() {
   for (const tl of state.tools) {
     const st = statusOf(tl.id);
     const item = h('button',
-      { class: `tool-item ${state.selected === tl.id ? 'active' : ''}`, onclick: () => select(tl.id) },
-      h('span', { class: 'tool-badge', text: tl.badge, style: `--accent:${tl.accent}` }),
+      { class: `tool-item ${state.selected === tl.id ? 'active' : ''}`, onclick: () => select(tl.id), style: `--accent:${tl.accent}` },
+      renderToolBadge(tl),
       h('span', { class: 'tool-item-body' },
         h('span', { class: 'tool-item-name', text: tl.name }),
         h('span', { class: 'tool-item-sub', text: tl.activeVersion ? `v${tl.activeVersion}` : t('noVersion') })),
@@ -372,6 +387,96 @@ function renderSidebar() {
   $('#btn-settings').classList.toggle('active', state.selected === SETTINGS_VIEW);
 }
 
+function renderDashboard(root) {
+  root.className = 'dashboard-pane';
+  
+  // 1. Header
+  const header = h('div', { class: 'dashboard-header' },
+    h('img', { src: 'logo.png', class: 'dashboard-logo', alt: 'PAMP Logo' }),
+    h('div', { class: 'dashboard-info' },
+      h('h1', { text: 'PAMP Control Center' }),
+      h('p', { class: 'muted', text: 'Portable Developer Stack & Version Manager' })
+    )
+  );
+
+  // 2. Active Services
+  const services = state.tools.filter(t => t.kind === 'service');
+  const serviceCards = services.map(svc => {
+    const st = statusOf(svc.id);
+    const running = !!(st && st.state === 'running');
+    
+    return h('div', { class: 'card dashboard-card', style: `--accent:${svc.accent}` },
+      h('div', { class: 'dashboard-card-top' },
+        renderToolBadge(svc),
+        h('div', { class: 'dashboard-card-title' },
+          h('h3', { text: svc.name }),
+          h('span', { class: 'muted', text: svc.activeVersion ? `v${svc.activeVersion}` : t('noActiveVersion') })
+        )
+      ),
+      h('div', { class: 'dashboard-card-status' },
+        h('span', { class: `state-pill ${running ? 'on' : 'off'}` },
+          h('span', { class: `dot ${running ? 'on' : 'off'}` }),
+          running ? t('running') : t('stopped')
+        ),
+        running && st.port && h('span', { class: 'chip ok', text: `Port: ${st.port}` })
+      ),
+      h('div', { class: 'dashboard-card-actions' },
+        h('button', {
+          class: `btn btn-small ${running ? 'btn-danger' : 'btn-primary'}`,
+          text: running ? t('stop') : t('start'),
+          onclick: (e) => {
+            e.stopPropagation();
+            if (running) stopService(svc.id);
+            else startService(svc.id);
+          }
+        }),
+        h('button', {
+          class: 'btn btn-small btn-ghost',
+          text: t('openFolder'),
+          onclick: (e) => {
+            e.stopPropagation();
+            window.pamp.openDir(svc.id);
+          }
+        })
+      )
+    );
+  });
+
+  const servicesSection = h('section', { class: 'dashboard-section' },
+    h('h2', { text: 'Active Services' }),
+    h('div', { class: 'dashboard-grid' }, ...serviceCards)
+  );
+
+  // 3. Runtimes
+  const runtimes = state.tools.filter(t => t.kind === 'runtime');
+  const runtimeCards = runtimes.map(rt => {
+    return h('div', { class: 'card dashboard-rt-card', style: `--accent:${rt.accent}`, onclick: () => select(rt.id) },
+      renderToolBadge(rt),
+      h('div', { class: 'dashboard-rt-info' },
+        h('h3', { text: rt.name }),
+        h('span', { class: 'muted', text: rt.activeVersion ? `Active: v${rt.activeVersion}` : t('noVersion') })
+      )
+    );
+  });
+
+  const runtimesSection = h('section', { class: 'dashboard-section' },
+    h('h2', { text: 'Installed Runtimes' }),
+    h('div', { class: 'dashboard-grid' }, ...runtimeCards)
+  );
+
+  // 4. Quick Actions / Links
+  const quickLinks = h('section', { class: 'dashboard-section' },
+    h('h2', { text: 'Quick Links' }),
+    h('div', { class: 'dashboard-links' },
+      h('button', { class: 'btn btn-ghost', onclick: () => window.pamp.openExternal('http://localhost') }, '🌐 Open Localhost (Port 80)'),
+      h('button', { class: 'btn btn-ghost', onclick: () => select(SETTINGS_VIEW) }, '⚙ Open Settings'),
+      h('button', { class: 'btn btn-ghost', onclick: () => setupPath() }, `🛠 ${t('addToPath')}`)
+    )
+  );
+
+  root.replaceChildren(header, servicesSection, runtimesSection, quickLinks);
+}
+
 /* ---------------- detail pane ---------------- */
 
 function renderDetail() {
@@ -383,8 +488,7 @@ function renderDetail() {
   }
   const tl = tool(state.selected);
   if (!tl) {
-    root.className = 'empty';
-    root.replaceChildren(h('p', { text: t('selectTool') }));
+    renderDashboard(root);
     return;
   }
   root.className = '';
@@ -393,7 +497,7 @@ function renderDetail() {
 
   const header = h('div', { class: 'detail-header' },
     h('div', { class: 'detail-title' },
-      h('span', { class: 'tool-badge lg', text: tl.badge, style: `--accent:${tl.accent}` }),
+      renderToolBadge(tl, 'lg'),
       h('div', {},
         h('h1', { text: tl.name }),
         h('div', { class: 'detail-sub' },
@@ -453,7 +557,15 @@ function renderDetail() {
             h('input', { type: 'checkbox', checked: state.logsFollow ? 'checked' : null,
               onchange: (e) => { state.logsFollow = e.target.checked; } }),
             t('follow'))),
-        h('pre', { id: 'log-view', class: 'logs' }))
+        h('div', { class: 'terminal-window' },
+          h('div', { class: 'terminal-header' },
+            h('div', { class: 'terminal-dots' },
+              h('span', { class: 'terminal-dot red' }),
+              h('span', { class: 'terminal-dot yellow' }),
+              h('span', { class: 'terminal-dot green' })),
+            h('span', { class: 'terminal-title', text: `${tl.name} Output Stream` }),
+            h('span', { style: 'width: 42px' })),
+          h('pre', { id: 'log-view', class: 'logs' })))
     : null;
 
   root.replaceChildren(...[header, versionsCard, downloadCard, logsCard].filter(Boolean));
@@ -658,6 +770,9 @@ async function setupPath() {
   $('#btn-refresh').addEventListener('click', () => refresh());
   $('#btn-path-setup').addEventListener('click', setupPath);
   $('#btn-settings').addEventListener('click', () => select(SETTINGS_VIEW));
+  $('#win-btn-minimize').addEventListener('click', () => window.pamp.minimize());
+  $('#win-btn-maximize').addEventListener('click', () => window.pamp.maximize());
+  $('#win-btn-close').addEventListener('click', () => window.pamp.close());
   setInterval(refreshStatusOnly, 5000);
   await refresh();
 })();

@@ -35,14 +35,18 @@ const SETTINGS_DIR = app.isPackaged ? ROOT : APP_DIR;
 let win = null;
 
 function createWindow() {
+  const s = settings.get(SETTINGS_DIR);
+  const isLight = s.theme === 'light';
   win = new BrowserWindow({
     width: 1240,
     height: 820,
     minWidth: 940,
     minHeight: 600,
-    backgroundColor: '#12141a',
+    backgroundColor: isLight ? '#eef1f6' : '#12141a',
     autoHideMenuBar: true,
     title: 'PAMP — Dev Stack Control Panel',
+    icon: path.join(__dirname, 'ui', 'logo.ico'),
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -141,6 +145,16 @@ ipcMain.handle('settings:set', async (_e, patch) => {
   applyLoginItem(next);
   return next;
 });
+
+ipcMain.on('win:minimize', () => { if (win) win.minimize(); });
+ipcMain.on('win:maximize', () => {
+  if (win) {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  }
+});
+ipcMain.on('win:close', () => { if (win) win.close(); });
+ipcMain.on('shell:openExternal', (_e, url) => { shell.openExternal(url); });
 
 ipcMain.handle('dialog:pickFolder', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });

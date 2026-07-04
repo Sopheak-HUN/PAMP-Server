@@ -19,4 +19,8 @@ contextBridge.exposeInMainWorld('pamp', {
   dlInstall: (toolId, version) => ipcRenderer.invoke('dl:install', toolId, version),
   onDlProgress: (fn) => ipcRenderer.on('dl:progress', (_e, payload) => fn(payload)),
   onLog: (fn) => ipcRenderer.on('service:log', (_e, payload) => fn(payload)),
+  minimize: () => ipcRenderer.send('win:minimize'),
+  maximize: () => ipcRenderer.send('win:maximize'),
+  close: () => ipcRenderer.send('win:close'),
+  openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
 });

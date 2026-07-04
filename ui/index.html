@@ -7,10 +7,22 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="window-controls">
+    <button id="win-btn-minimize" class="win-control-btn" title="Minimize">
+      <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 5H9" stroke="currentColor" stroke-width="1.2"/></svg>
+    </button>
+    <button id="win-btn-maximize" class="win-control-btn" title="Maximize">
+      <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+    </button>
+    <button id="win-btn-close" class="win-control-btn close" title="Close">
+      <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5" stroke="currentColor" stroke-width="1.2"/></svg>
+    </button>
+  </div>
+
   <div id="app">
     <aside id="sidebar">
       <div class="brand">
-        <div class="brand-logo">P</div>
+        <img class="brand-logo" src="logo.png" alt="PAMP Logo" />
         <div>
           <div class="brand-name">PAMP</div>
           <div class="brand-sub">Dev Stack Control</div>
@@ -19,7 +31,7 @@
       <nav id="tool-list"></nav>
       <div class="sidebar-footer">
         <button id="btn-path-setup" class="btn btn-ghost" title="Add all current-version folders to your user PATH">
-          Add tools to PATH
+          Add to PATH
         </button>
         <button id="btn-refresh" class="btn btn-ghost">Refresh</button>
         <button id="btn-settings" class="btn btn-ghost">⚙ Settings</button>

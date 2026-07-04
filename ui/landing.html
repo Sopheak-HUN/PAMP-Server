@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAMP — Dev Stack Server</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #141a29 0%, #0b0e14 70%);
+    }
+    .glow-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glow-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--accent) 30%, transparent);
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col font-sans">
+  
+  <!-- Hero Section -->
+  <header class="container mx-auto px-6 py-20 flex flex-col items-center text-center">
+    <div class="relative mb-8">
+      <div class="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+      <img class="w-32 h-32 relative object-contain drop-shadow-[0_0_25px_rgba(79,140,255,0.4)]" src="logo.png" alt="PAMP Logo">
+    </div>
+    <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
+      PAMP Developer Stack
+    </h1>
+    <p class="mt-6 text-lg md:text-xl text-slate-400 max-w-2xl leading-relaxed">
+      The ultra-lightweight, completely portable version switching suite and developer service control panel for Windows.
+    </p>
+    <div class="mt-10 flex gap-4">
+      <a href="http://localhost" class="px-8 py-3.5 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all text-white font-semibold rounded-xl shadow-lg shadow-blue-600/30">
+        Go to Localhost
+      </a>
+      <a href="#features" class="px-8 py-3.5 bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all text-slate-300 font-semibold rounded-xl border border-slate-700">
+        Explore Stack
+      </a>
+    </div>
+  </header>
+
+  <!-- Tech Grid Section -->
+  <main id="features" class="container mx-auto px-6 py-12 max-w-6xl">
+    <div class="text-center mb-16">
+      <h2 class="text-2xl md:text-3xl font-bold tracking-wide uppercase text-slate-400 text-xs">Supported Technologies</h2>
+      <p class="mt-2 text-slate-400">PAMP manages and controls the following developer runtimes and database services natively.</p>
+    </div>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <!-- PHP -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #777bb3;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/php.svg" alt="PHP">
+        <h3 class="font-bold text-lg">PHP</h3>
+        <span class="text-xs text-slate-500 mt-1">Multi-version runtime</span>
+      </div>
+
+      <!-- Node.js -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #5fa04e;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/node.svg" alt="Node.js">
+        <h3 class="font-bold text-lg">Node.js</h3>
+        <span class="text-xs text-slate-500 mt-1">JS runtime environment</span>
+      </div>
+
+      <!-- Python -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #3776ab;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/python.svg" alt="Python">
+        <h3 class="font-bold text-lg">Python</h3>
+        <span class="text-xs text-slate-500 mt-1">Python interpreter</span>
+      </div>
+
+      <!-- MySQL -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #00758f;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/mysql.svg" alt="MySQL">
+        <h3 class="font-bold text-lg">MySQL</h3>
+        <span class="text-xs text-slate-500 mt-1">Relational Database service</span>
+      </div>
+
+      <!-- Nginx -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #009639;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/nginx.svg" alt="Nginx">
+        <h3 class="font-bold text-lg">Nginx</h3>
+        <span class="text-xs text-slate-500 mt-1">High-performance Web Server</span>
+      </div>
+
+      <!-- .NET -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #512bd4;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/dotnet.svg" alt=".NET">
+        <h3 class="font-bold text-lg">.NET SDK</h3>
+        <span class="text-xs text-slate-500 mt-1">Microsoft C# Dev Stack</span>
+      </div>
+
+      <!-- Java -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #e76f00;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/java.svg" alt="Java">
+        <h3 class="font-bold text-lg">Java JDK</h3>
+        <span class="text-xs text-slate-500 mt-1">Java compilation SDK</span>
+      </div>
+
+      <!-- Redis -->
+      <div class="glow-card border border-slate-800 bg-slate-900/40 backdrop-blur-md rounded-2xl p-6 flex flex-col items-center text-center" style="--accent: #d82c20;">
+        <img class="w-12 h-12 mb-4 object-contain" src="logos/redis.svg" alt="Redis">
+        <h3 class="font-bold text-lg">Redis</h3>
+        <span class="text-xs text-slate-500 mt-1">Memory Cache Store service</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Live Status Footer utility -->
+  <footer class="mt-auto border-t border-slate-900 bg-slate-950/80 backdrop-blur-lg py-8 text-center text-sm text-slate-500">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>PAMP stack status: <strong>Online</strong></span>
+      </div>
+      <div>
+        <span>Powered by Nginx & MySQL — Custom styled interface</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
