@@ -30,6 +30,11 @@ const TOOLS = [
     versionRegex: 'Ver\\s+([\\d.]+)', pathDirs: ['bin'], port: 3306,
   },
   {
+    id: 'postgres', name: 'PostgreSQL', kind: 'service', accent: '#336791', badge: 'PG',
+    exe: ['bin\\postgres.exe'], versionArgs: ['--version'],
+    versionRegex: '\\)\\s+([\\d.]+)', pathDirs: ['bin'], port: 5432,
+  },
+  {
     id: 'nginx', name: 'Nginx', kind: 'service', accent: '#009639', badge: 'NGX',
     exe: ['nginx.exe'], versionArgs: ['-v'],
     versionRegex: 'nginx/([\\d.]+)', pathDirs: [''], port: 80,

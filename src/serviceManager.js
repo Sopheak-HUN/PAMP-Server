@@ -130,6 +130,20 @@ async function ensureMysqlData(dataRoot, exe) {
   return dataDir;
 }
 
+// PostgreSQL refuses to start on an uninitialized data directory; run initdb on
+// first start. Trust auth = passwordless local dev (mirrors MySQL's insecure
+// default). base is the active version folder (…/pgsql), holding bin\initdb.exe.
+async function ensurePostgresData(dataRoot, base) {
+  const dataDir = path.join(dataRoot, 'postgres');
+  if (fs.existsSync(path.join(dataDir, 'PG_VERSION'))) return dataDir;
+  fs.mkdirSync(dataRoot, { recursive: true });
+  const initdb = path.join(base, 'bin', 'initdb.exe');
+  log('postgres', `Initializing data directory at ${dataDir} (first run, may take a minute)...`);
+  await execFileP(initdb, ['-D', dataDir, '-U', 'postgres', '-A', 'trust', '-E', 'UTF8'], { timeout: 300000 });
+  log('postgres', 'Data directory initialized. Superuser "postgres", trust auth (no password).');
+  return dataDir;
+}
+
 async function start(root, tool, opts = {}) {
   const status = await getStatus(tool);
   if (status.state === 'running') {
@@ -142,11 +156,15 @@ async function start(root, tool, opts = {}) {
   }
 
   let args = [];
+  let pgDataDir = null;
   const cwd = fs.realpathSync(base);
   const dataRoot = opts.dataRoot || path.join(root, 'data');
   if (tool.id === 'mysql') {
     const dataDir = await ensureMysqlData(dataRoot, exe);
     args = ['--console', `--datadir=${dataDir}`, `--port=${tool.port}`];
+  } else if (tool.id === 'postgres') {
+    pgDataDir = await ensurePostgresData(dataRoot, cwd);
+    args = ['-D', pgDataDir, '-p', String(tool.port)];
   } else if (tool.id === 'nginx') {
     ensureNginxConf(cwd, tool.port, opts.docRoot);
     args = ['-p', cwd];
@@ -175,7 +193,7 @@ async function start(root, tool, opts = {}) {
   // exe/cwd/port are remembered so stop and status target the instance that
   // was actually started, even if the user switches the active version or
   // changes the port setting while it runs.
-  running.set(tool.id, { proc, startedAt: Date.now(), exe, cwd, port: tool.port });
+  running.set(tool.id, { proc, startedAt: Date.now(), exe, cwd, port: tool.port, dataDir: pgDataDir });
 
   // nginx.exe forks a master+workers and the launcher process may exit
   // immediately; the port check in getStatus covers the real state.
@@ -199,6 +217,12 @@ async function gracefulStop(root, tool, port) {
       const admin = path.join(cwd, 'bin', 'mysqladmin.exe');
       if (!fs.existsSync(admin)) return false;
       await execFileP(admin, ['-u', 'root', `--port=${port}`, 'shutdown'], { timeout: 30000 });
+    } else if (tool.id === 'postgres') {
+      // pg_ctl needs the data dir; we only have it for a PAMP-managed instance.
+      // Externally started servers fall through to the force-kill path.
+      const pgctl = path.join(cwd, 'bin', 'pg_ctl.exe');
+      if (!rec || !rec.dataDir || !fs.existsSync(pgctl)) return false;
+      await execFileP(pgctl, ['stop', '-D', rec.dataDir, '-m', 'fast', '-w', '-t', '25'], { timeout: 30000 });
     } else if (tool.id === 'redis') {
       const cli = path.join(cwd, 'redis-cli.exe');
       if (!fs.existsSync(cli)) return false;

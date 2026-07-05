@@ -1,7 +1,7 @@
 # PAMP — Dev Stack Control Panel
 
 Portable version manager and service control panel for Windows. Manage multiple
-versions of PHP, Node.js, Python, MySQL, Nginx, .NET, Java and Redis from one
+versions of PHP, Node.js, Python, MySQL, PostgreSQL, Nginx, .NET, Java and Redis from one
 window, switch the active version per tool, and start/stop the server tools.
 
 ## Run
@@ -45,11 +45,15 @@ every tool to your **user** PATH (no admin needed). Because `current` is a
 junction, switching versions in the app immediately changes what `php`,
 `node`, `python`, `java` … resolve to in any *newly opened* terminal.
 
-## Services (MySQL, Nginx, Redis)
+## Services (MySQL, PostgreSQL, Nginx, Redis)
 
 - **Start/Stop** buttons manage the process; live output appears in the Logs pane.
 - MySQL: the data directory is auto-initialized on first start at `data\mysql`
   (root user, empty password — local dev defaults).
+- PostgreSQL: the data directory is auto-initialized on first start at
+  `data\postgres` (superuser `postgres`, trust auth / no password — local dev
+  defaults). Note: `postgres.exe` will not run if PAMP itself is launched as
+  Administrator.
 - Nginx runs with its prefix set to the active version folder (`-p`), so edit
   `bin\nginx\current\conf\nginx.conf` to configure sites.
 - A service already running on its port (started outside PAMP) is detected and
@@ -78,10 +82,11 @@ The **⚙ Settings** button (bottom of the sidebar) opens two tabs.
 - **Language** — English or Khmer (ខ្មែរ); the whole UI switches instantly.
   Khmer text renders in **Kantumruy Pro** (bundled in `ui\fonts\`, OFL license,
   from Google Fonts — no internet needed at runtime).
-- **Service ports** — per-service port for MySQL, Nginx and Redis. Applied on
-  the next start: MySQL via `--port`, Redis via a CLI override after its conf,
-  Nginx by rewriting the first `listen` directive in `conf\nginx.conf`.
-  A service already running keeps its old port until restarted.
+- **Service ports** — per-service port for MySQL, PostgreSQL, Nginx and Redis.
+  Applied on the next start: MySQL via `--port`, PostgreSQL via `-p`, Redis via
+  a CLI override after its conf, Nginx by rewriting the first `listen` directive
+  in `conf\nginx.conf`. A service already running keeps its old port until
+  restarted.
 
 Choices persist in `settings.json` next to the app.
 

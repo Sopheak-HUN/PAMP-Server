@@ -176,6 +176,23 @@ function listMysql() {
   });
 }
 
+// PostgreSQL has no clean version-index API for the portable zip; EnterpriseDB
+// hosts them at a predictable URL. "<version>-<build>" winx64 builds, newest
+// first (the zip extracts to a nested pgsql\ folder — findExe handles that).
+const POSTGRES_VERSIONS = ['17.5-1', '17.4-1', '17.2-1', '16.9-1', '16.8-1', '16.4-1',
+  '15.13-1', '15.12-1', '15.8-1', '14.18-1', '14.17-1', '13.21-1'];
+
+function listPostgres() {
+  return POSTGRES_VERSIONS.map((vb) => {
+    const version = vb.split('-')[0];
+    return {
+      version,
+      label: `PostgreSQL ${version} (winx64, ~300 MB)`,
+      url: `https://get.enterprisedb.com/postgresql/postgresql-${vb}-windows-x64-binaries.zip`,
+    };
+  });
+}
+
 async function listNginx() {
   const html = await fetchText('https://nginx.org/download/');
   const seen = new Set();
@@ -238,7 +255,7 @@ async function listRedis() {
 
 const SOURCES = {
   php: listPhp, node: listNode, python: listPython, mysql: listMysql,
-  nginx: listNginx, dotnet: listDotnet, java: listJava, redis: listRedis,
+  postgres: listPostgres, nginx: listNginx, dotnet: listDotnet, java: listJava, redis: listRedis,
 };
 
 /* ---------------- public API ---------------- */
