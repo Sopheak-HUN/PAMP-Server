@@ -10,6 +10,7 @@ const settings = require('./src/settingsManager');
 const downloads = require('./src/downloadManager');
 const php = require('./src/phpManager');
 const quick = require('./src/quickTools');
+const node = require('./src/nodeManager');
 
 const fs = require('fs');
 
@@ -165,6 +166,15 @@ ipcMain.handle('quick:pma', async () => {
   await shell.openExternal(await quick.openPhpMyAdmin(ROOT, quickProgress('pma')));
   return true;
 });
+
+// Node.js global package management (active version only). Install/uninstall
+// stream npm output to the renderer on node:log.
+function nodeLog(line) {
+  if (win && !win.isDestroyed()) win.webContents.send('node:log', { line });
+}
+ipcMain.handle('node:info', async () => node.info(ROOT));
+ipcMain.handle('node:install', async (_e, pkg) => node.install(ROOT, pkg, nodeLog));
+ipcMain.handle('node:uninstall', async (_e, pkg) => node.uninstall(ROOT, pkg, nodeLog));
 
 // Register (or remove) PAMP in the user's Windows startup entries. In dev the
 // login item is "electron.exe <app dir>"; in a packaged build it's the exe.

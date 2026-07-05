@@ -22,6 +22,9 @@ const state = {
   laravelForm: false,   // inline "create project" form is open
   laravelName: '',
   laravelDir: '',       // chosen parent folder ('' = <stack>\www)
+  nodeInfo: undefined,  // undefined = loading, { available, packages } once fetched
+  nodeBusy: {},         // package name -> true while npm install/uninstall runs
+  nodeLog: [],          // streamed npm output lines
 };
 
 // How many extension chips to show before collapsing behind "+N more".
@@ -144,6 +147,14 @@ const I18N = {
     qtNeedName: 'Enter a project name.',
     qtLaravelDone: 'Laravel project created at {path}',
     qtNeedMysql: 'phpMyAdmin needs MySQL running — start it from the MySQL tab to log in.',
+    nodePackages: 'Global Packages',
+    nodePackagesSub: 'npm install -g',
+    nodeNoActive: 'Activate a Node.js version to manage global packages.',
+    pkgInstall: 'Install',
+    pkgRemove: 'Remove',
+    pkgInstallDone: '{name} installed.',
+    pkgRemoveDone: '{name} removed.',
+    pkgFailed: 'Could not update {name}: {msg}',
   },
   km: {
     brandSub: 'ផ្ទាំងគ្រប់គ្រង Dev Stack',
@@ -259,6 +270,14 @@ const I18N = {
     qtNeedName: 'បញ្ចូលឈ្មោះគម្រោង។',
     qtLaravelDone: 'បានបង្កើតគម្រោង Laravel នៅ {path}',
     qtNeedMysql: 'phpMyAdmin ត្រូវការ MySQL ដំណើរការ — ចាប់ផ្តើមវានៅផ្ទាំង MySQL ដើម្បីចូល។',
+    nodePackages: 'កញ្ចប់សកល',
+    nodePackagesSub: 'npm install -g',
+    nodeNoActive: 'ធ្វើឲ្យកំណែ Node.js សកម្ម ដើម្បីគ្រប់គ្រងកញ្ចប់សកល។',
+    pkgInstall: 'ដំឡើង',
+    pkgRemove: 'លុបចេញ',
+    pkgInstallDone: 'បានដំឡើង {name}។',
+    pkgRemoveDone: 'បានលុប {name}។',
+    pkgFailed: 'មិនអាចធ្វើបច្ចុប្បន្នភាព {name}៖ {msg}',
   },
 };
 
@@ -725,8 +744,9 @@ function renderDetail() {
     : null;
 
   const phpCards = renderPhpCards(tl);
+  const nodeCards = renderNodeCards(tl);
 
-  root.replaceChildren(...[header, versionsCard, downloadCard, ...phpCards, logsCard].filter(Boolean));
+  root.replaceChildren(...[header, versionsCard, downloadCard, ...phpCards, ...nodeCards, logsCard].filter(Boolean));
   if (logsCard) loadLogs(tl.id);
 }
 
@@ -943,6 +963,88 @@ function renderPhpCards(tl) {
   return [renderPhpExtensionsCard(), renderPhpConfigCard(), renderQuickToolsCard()];
 }
 
+/* ---------------- node global packages ---------------- */
+
+async function loadNodeInfo() {
+  try {
+    state.nodeInfo = await window.pamp.nodeInfo();
+  } catch {
+    state.nodeInfo = { available: false };
+  }
+  if (state.selected === 'node') renderDetail();
+}
+
+async function nodePkgAction(pkg, installed) {
+  if (state.nodeBusy[pkg]) return;
+  state.nodeBusy[pkg] = true;
+  state.nodeLog = [];
+  renderDetail();
+  try {
+    if (installed) {
+      await window.pamp.nodeUninstall(pkg);
+      toast(t('pkgRemoveDone', { name: pkg }), 'ok');
+    } else {
+      await window.pamp.nodeInstall(pkg);
+      toast(t('pkgInstallDone', { name: pkg }), 'ok');
+    }
+  } catch (err) {
+    toast(t('pkgFailed', { name: pkg, msg: err.message }), 'err');
+  } finally {
+    delete state.nodeBusy[pkg];
+    await loadNodeInfo();
+  }
+}
+
+function onNodeLog(p) {
+  state.nodeLog.push(p.line);
+  if (state.nodeLog.length > 400) state.nodeLog.splice(0, state.nodeLog.length - 400);
+  const pre = $('#node-log');
+  if (pre) { pre.textContent = state.nodeLog.join('\n'); pre.scrollTop = pre.scrollHeight; }
+  else if (state.selected === 'node') renderDetail();
+}
+
+// The Node-only global packages card, or nothing for other tools / while info
+// is still loading / when no version is active.
+function renderNodeCards(tl) {
+  if (tl.id !== 'node') return [];
+  const info = state.nodeInfo;
+  if (info === undefined) {
+    return [h('section', { class: 'card' }, h('div', { class: 'muted', text: t('loading') }))];
+  }
+  if (!info.available) {
+    return [h('section', { class: 'card' },
+      h('div', { class: 'placeholder' }, h('p', { class: 'muted', text: t('nodeNoActive') })))];
+  }
+
+  const tiles = (info.packages || []).map((p) => {
+    const busy = state.nodeBusy[p.name];
+    return h('div', { class: `quick-tile pkg-tile ${busy ? 'busy' : ''}` },
+      h('span', { class: 'quick-icon' }, h('img', { class: 'quick-logo', src: `logos/${p.logo}.svg`, alt: p.name })),
+      h('span', { class: 'quick-body' },
+        h('span', { class: 'quick-title' },
+          p.name,
+          p.installed && p.version ? h('span', { class: 'chip ok pkg-ver', text: `v${p.version}` }) : null),
+        h('span', { class: 'quick-sub', text: busy ? t('qtWorking') : p.desc })),
+      h('button', {
+        class: `btn btn-small ${p.installed ? 'btn-ghost' : 'btn-primary'} pkg-action`,
+        disabled: busy ? 'disabled' : null,
+        text: p.installed ? t('pkgRemove') : t('pkgInstall'),
+        onclick: () => nodePkgAction(p.name, p.installed),
+      }));
+  });
+
+  const children = [
+    h('div', { class: 'card-head' },
+      h('h2', { text: t('nodePackages') }),
+      h('span', { class: 'muted', text: t('nodePackagesSub') })),
+    h('div', { class: 'quick-grid' }, ...tiles),
+  ];
+  if (state.nodeLog.length) {
+    children.push(h('pre', { id: 'node-log', class: 'quick-log', text: state.nodeLog.join('\n') }));
+  }
+  return [h('section', { class: 'card' }, ...children)];
+}
+
 /* ---------------- download card ---------------- */
 
 function fmtMB(bytes) {
@@ -1061,9 +1163,11 @@ function select(id) {
     state.phpManage = false;
     state.phpExpanded = false;
   }
+  if (id === 'node') state.nodeInfo = undefined;
   renderSidebar();
   renderDetail();
   if (id === 'php') loadPhpInfo();
+  if (id === 'node') loadNodeInfo();
 }
 
 async function refresh(keepSelection = true) {
@@ -1076,6 +1180,8 @@ async function refresh(keepSelection = true) {
   renderDetail();
   // The active PHP version (and thus its ini/extensions) may have changed.
   if (state.selected === 'php') loadPhpInfo();
+  // Same for Node: another version means a different set of global packages.
+  if (state.selected === 'node') loadNodeInfo();
 }
 
 async function refreshStatusOnly() {
@@ -1153,6 +1259,7 @@ async function setupPath() {
   window.pamp.onDlProgress(onDlProgress);
   window.pamp.onQuickProgress(onQuickProgress);
   window.pamp.onQuickLog(onQuickLog);
+  window.pamp.onNodeLog(onNodeLog);
   $('#btn-refresh').addEventListener('click', () => refresh());
   $('#btn-path-setup').addEventListener('click', setupPath);
   $('#btn-settings').addEventListener('click', () => select(SETTINGS_VIEW));
