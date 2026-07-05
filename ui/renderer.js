@@ -25,6 +25,25 @@ const state = {
   nodeInfo: undefined,  // undefined = loading, { available, packages } once fetched
   nodeBusy: {},         // package name -> true while npm install/uninstall runs
   nodeLog: [],          // streamed npm output lines
+  quickLogTask: '',     // task the quickLog lines belong to (routes the log pane)
+  scaffold: { action: null, name: '', dir: '', template: '' }, // open scaffold form
+};
+
+// Per-runtime project scaffolds shown as Quick Tools on the tool's page.
+const SCAFFOLDS = {
+  vite:   { page: 'node',   logo: 'vite',   title: 'qtVite',   sub: 'qtViteSub',   needName: true,
+            templates: ['vanilla', 'vanilla-ts', 'react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts'] },
+  venv:   { page: 'python', logo: 'python', title: 'qtVenv',   sub: 'qtVenvSub',   dirOnly: true },
+  django: { page: 'python', logo: 'python', title: 'qtDjango', sub: 'qtDjangoSub', needName: true },
+  spring: { page: 'java',   logo: 'java',   title: 'qtSpring', sub: 'qtSpringSub', needName: true },
+  dotnet: { page: 'dotnet', logo: 'dotnet', title: 'qtDotnetNew', sub: 'qtDotnetNewSub', needName: true,
+            templates: ['console', 'webapi', 'mvc', 'blazor', 'classlib', 'worker'] },
+};
+
+// Which tool page a streamed quick:log task belongs to.
+const TASK_PAGE = {
+  phpinfo: 'php', composer: 'php', laravel: 'php', pma: 'php',
+  ...Object.fromEntries(Object.entries(SCAFFOLDS).map(([a, d]) => [`scaffold-${a}`, d.page])),
 };
 
 // How many extension chips to show before collapsing behind "+N more".
@@ -149,6 +168,19 @@ const I18N = {
     qtNeedName: 'Enter a project name.',
     qtLaravelDone: 'Laravel project created at {path}',
     qtNeedMysql: 'phpMyAdmin needs MySQL running — start it from the MySQL tab to log in.',
+    qtVite: 'Create Vite project',
+    qtViteSub: 'npm create vite',
+    qtVenv: 'Create virtualenv',
+    qtVenvSub: 'python -m venv .venv',
+    qtDjango: 'Create Django project',
+    qtDjangoSub: 'venv + pip install django',
+    qtSpring: 'Create Spring Boot project',
+    qtSpringSub: 'start.spring.io starter (web)',
+    qtDotnetNew: 'Create .NET project',
+    qtDotnetNewSub: 'dotnet new',
+    qtTemplate: 'Template',
+    qtNeedFolder: 'Choose a folder.',
+    scaffoldDone: 'Project created at {path}',
     nodePackages: 'Global Packages',
     nodePackagesSub: 'npm install -g',
     nodeNoActive: 'Activate a Node.js version to manage global packages.',
@@ -274,6 +306,19 @@ const I18N = {
     qtNeedName: 'បញ្ចូលឈ្មោះគម្រោង។',
     qtLaravelDone: 'បានបង្កើតគម្រោង Laravel នៅ {path}',
     qtNeedMysql: 'phpMyAdmin ត្រូវការ MySQL ដំណើរការ — ចាប់ផ្តើមវានៅផ្ទាំង MySQL ដើម្បីចូល។',
+    qtVite: 'បង្កើតគម្រោង Vite',
+    qtViteSub: 'npm create vite',
+    qtVenv: 'បង្កើត virtualenv',
+    qtVenvSub: 'python -m venv .venv',
+    qtDjango: 'បង្កើតគម្រោង Django',
+    qtDjangoSub: 'venv + pip install django',
+    qtSpring: 'បង្កើតគម្រោង Spring Boot',
+    qtSpringSub: 'starter ពី start.spring.io (web)',
+    qtDotnetNew: 'បង្កើតគម្រោង .NET',
+    qtDotnetNewSub: 'dotnet new',
+    qtTemplate: 'គំរូ',
+    qtNeedFolder: 'ជ្រើសរើសថត។',
+    scaffoldDone: 'បានបង្កើតគម្រោងនៅ {path}',
     nodePackages: 'កញ្ចប់សកល',
     nodePackagesSub: 'npm install -g',
     nodeNoActive: 'ធ្វើឲ្យកំណែ Node.js សកម្ម ដើម្បីគ្រប់គ្រងកញ្ចប់សកល។',
@@ -766,8 +811,9 @@ function renderDetail() {
 
   const phpCards = renderPhpCards(tl);
   const nodeCards = renderNodeCards(tl);
+  const scaffoldCards = renderScaffoldCards(tl);
 
-  root.replaceChildren(...[header, versionsCard, downloadCard, ...phpCards, ...nodeCards, logsCard].filter(Boolean));
+  root.replaceChildren(...[header, versionsCard, downloadCard, ...phpCards, ...nodeCards, ...scaffoldCards, logsCard].filter(Boolean));
   if (logsCard) loadLogs(tl.id);
 }
 
@@ -891,6 +937,7 @@ async function createLaravelProject() {
   const name = (state.laravelName || '').trim();
   if (!name) { toast(t('qtNeedName'), 'err'); return; }
   state.quickLog = [];
+  state.quickLogTask = 'laravel';
   await runQuick('laravel', async () => {
     const r = await window.pamp.createLaravel({ dir: state.laravelDir || '', name });
     toast(t('qtLaravelDone', { path: r.path }), 'ok');
@@ -910,11 +957,19 @@ function onQuickProgress(p) {
 }
 
 function onQuickLog(p) {
+  state.quickLogTask = p.task;
   state.quickLog.push(p.line);
   if (state.quickLog.length > 400) state.quickLog.splice(0, state.quickLog.length - 400);
   const pre = $('#quick-log');
   if (pre) { pre.textContent = state.quickLog.join('\n'); pre.scrollTop = pre.scrollHeight; }
-  else if (state.selected === 'php') renderDetail();
+  else if (state.selected === (TASK_PAGE[p.task] || 'php')) renderDetail();
+}
+
+// The streamed-output pane, but only on the page the running task belongs to.
+function quickLogPre(pageId) {
+  if (!state.quickLog.length) return null;
+  if ((TASK_PAGE[state.quickLogTask] || 'php') !== pageId) return null;
+  return h('pre', { id: 'quick-log', class: 'quick-log', text: state.quickLog.join('\n') });
 }
 
 function quickTile(task, logo, title, sub, onclick) {
@@ -965,7 +1020,8 @@ function renderQuickToolsCard() {
 
   const children = [h('div', { class: 'card-head' }, h('h2', { text: t('quickTools') })), grid];
   if (state.laravelForm) children.push(renderLaravelForm());
-  if (state.quickLog.length) children.push(h('pre', { id: 'quick-log', class: 'quick-log', text: state.quickLog.join('\n') }));
+  const pre = quickLogPre('php');
+  if (pre) children.push(pre);
   return h('section', { class: 'card' }, ...children);
 }
 
@@ -1063,6 +1119,74 @@ function renderNodeCards(tl) {
   if (state.nodeLog.length) {
     children.push(h('pre', { id: 'node-log', class: 'quick-log', text: state.nodeLog.join('\n') }));
   }
+  return [h('section', { class: 'card' }, ...children)];
+}
+
+/* ---------------- runtime quick tools (project scaffolds) ---------------- */
+
+function toggleScaffold(action) {
+  const d = SCAFFOLDS[action];
+  state.scaffold = state.scaffold.action === action
+    ? { action: null, name: '', dir: '', template: '' }
+    : { action, name: '', dir: '', template: (d.templates && d.templates[0]) || '' };
+  renderDetail();
+}
+
+async function runScaffold() {
+  const sc = state.scaffold;
+  const d = SCAFFOLDS[sc.action];
+  const action = sc.action;
+  if (d.needName && !(sc.name || '').trim()) { toast(t('qtNeedName'), 'err'); return; }
+  if (d.dirOnly && !sc.dir) { toast(t('qtNeedFolder'), 'err'); return; }
+  state.quickLog = [];
+  state.quickLogTask = `scaffold-${action}`;
+  await runQuick(`scaffold-${action}`, async () => {
+    const r = await window.pamp.scaffoldCreate(action, {
+      name: (sc.name || '').trim(), dir: sc.dir || '', template: sc.template || '',
+    });
+    toast(t('scaffoldDone', { path: r.path }), 'ok');
+    state.scaffold = { action: null, name: '', dir: '', template: '' };
+  });
+}
+
+function renderScaffoldForm() {
+  const sc = state.scaffold;
+  const d = SCAFFOLDS[sc.action];
+  const kids = [];
+  if (!d.dirOnly) {
+    kids.push(h('input', {
+      class: 'q-input', type: 'text', placeholder: t('qtProjectName'),
+      value: sc.name || '',
+      oninput: (e) => { sc.name = e.target.value; },
+    }));
+  }
+  if (d.templates) {
+    kids.push(h('select', {
+      class: 'dl-select', title: t('qtTemplate'),
+      onchange: (e) => { sc.template = e.target.value; },
+    }, ...d.templates.map((tp) =>
+      h('option', { value: tp, text: tp, selected: sc.template === tp ? 'selected' : null }))));
+  }
+  kids.push(h('button', {
+    class: 'btn btn-small', text: sc.dir || t('qtChooseFolder'),
+    onclick: async () => { const dd = await window.pamp.pickFolder(); if (dd) { sc.dir = dd; renderDetail(); } },
+  }));
+  kids.push(h('button', { class: 'btn btn-primary btn-small', text: t('qtCreate'), onclick: () => runScaffold() }));
+  return h('div', { class: 'laravel-form' }, ...kids);
+}
+
+// Quick Tools card for runtimes with scaffolds (node / python / java / dotnet).
+function renderScaffoldCards(tl) {
+  const defs = Object.entries(SCAFFOLDS).filter(([, d]) => d.page === tl.id);
+  if (!defs.length) return [];
+  const grid = h('div', { class: 'quick-grid' }, ...defs.map(([action, d]) =>
+    quickTile(`scaffold-${action}`, d.logo, t(d.title), t(d.sub), () => toggleScaffold(action))));
+  const children = [h('div', { class: 'card-head' }, h('h2', { text: t('quickTools') })), grid];
+  if (state.scaffold.action && SCAFFOLDS[state.scaffold.action].page === tl.id) {
+    children.push(renderScaffoldForm());
+  }
+  const pre = quickLogPre(tl.id);
+  if (pre) children.push(pre);
   return [h('section', { class: 'card' }, ...children)];
 }
 
@@ -1185,6 +1309,7 @@ function select(id) {
     state.phpExpanded = false;
   }
   if (id === 'node') state.nodeInfo = undefined;
+  state.scaffold = { action: null, name: '', dir: '', template: '' };
   renderSidebar();
   renderDetail();
   if (id === 'php') loadPhpInfo();

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('pamp', {
   quickPhpinfo: () => ipcRenderer.invoke('quick:phpinfo'),
   installComposer: () => ipcRenderer.invoke('quick:installComposer'),
   createLaravel: (opts) => ipcRenderer.invoke('quick:createLaravel', opts),
+  scaffoldCreate: (action, opts) => ipcRenderer.invoke('scaffold:create', action, opts),
   openPhpMyAdmin: () => ipcRenderer.invoke('quick:pma'),
   onQuickProgress: (fn) => ipcRenderer.on('quick:progress', (_e, payload) => fn(payload)),
   onQuickLog: (fn) => ipcRenderer.on('quick:log', (_e, payload) => fn(payload)),
