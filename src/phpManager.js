@@ -72,14 +72,59 @@ function listExtDlls(extDir) {
   } catch { return []; }
 }
 
-// `php -m` is the source of truth for what's actually loaded right now.
-function loadedModules(exe) {
+// Keep only real module names from `php -m` output. A failed extension prints a
+// multi-line "Warning: PHP Startup: Unable to load dynamic library ..." that
+// leaks into the list, and Zend extensions (e.g. Zend OPcache) are echoed under
+// both [PHP Modules] and [Zend Modules] — so filter warnings and dedupe.
+function parseModuleList(text) {
+  const seen = new Set();
+  const mods = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('[')) continue;
+    if (/^(PHP\s+)?(Warning|Deprecated|Notice|Fatal error|Parse error|Strict Standards)\b/i.test(line)) continue;
+    if (/[:\\/()'"]/.test(line)) continue; // module names never contain these
+    const key = line.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    mods.push(line);
+  }
+  return mods;
+}
+
+// `php -m` is the source of truth for what's actually loaded right now. Run it
+// from the PHP dir with startup errors muted so a broken extension can't spam
+// the output we parse.
+function loadedModules(exe, cwd) {
   return new Promise((resolve) => {
-    execFile(exe, ['-m'], { windowsHide: true, timeout: 15000 }, (err, stdout) => {
-      if (err || !stdout) return resolve([]);
-      resolve(stdout.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith('[')));
-    });
+    execFile(exe, ['-d', 'display_startup_errors=0', '-d', 'error_reporting=0', '-m'],
+      { windowsHide: true, timeout: 15000, cwd }, (err, stdout) => {
+        resolve(stdout ? parseModuleList(stdout) : []);
+      });
   });
+}
+
+// The #1 cause of "Unable to load dynamic library ... The specified module could
+// not be found" is a missing/wrong extension_dir, so PHP looks in a default like
+// C:\php\ext that doesn't hold this build's DLLs. Point it at the real ext folder
+// when it's unset or broken (an existing custom dir is left untouched).
+function ensureExtensionDir(iniPath, phpDir) {
+  const realExt = path.join(phpDir, 'ext');
+  if (!fs.existsSync(realExt)) return;
+  const text = safeRead(iniPath);
+  const { extDir } = parseIni(text);
+  const resolved = extDir
+    ? (path.isAbsolute(extDir) ? extDir : path.join(phpDir, extDir))
+    : null;
+  if (resolved && fs.existsSync(resolved)) return; // already valid — don't touch
+  const desired = `extension_dir = "${realExt}"`;
+  let done = false;
+  const next = text.split(/\r?\n/).map((line) => {
+    if (!done && /^\s*;?\s*extension_dir\s*=/i.test(line)) { done = true; return desired; }
+    return line;
+  });
+  if (!done) next.push(desired);
+  try { fs.writeFileSync(iniPath, next.join('\n')); } catch { /* read-only install */ }
 }
 
 // Resolve the config-file locations for the active PHP without spawning php.exe,
@@ -88,6 +133,7 @@ function resolvePaths(root) {
   const dir = versions.currentDir(root, PHP);
   if (!dir) return null;
   const iniPath = ensureIni(dir) || path.join(dir, 'php.ini');
+  if (fs.existsSync(iniPath)) ensureExtensionDir(iniPath, dir);
   const parsed = parseIni(fs.existsSync(iniPath) ? safeRead(iniPath) : '');
   return {
     dir,
@@ -103,7 +149,7 @@ async function info(root) {
   const paths = resolvePaths(root);
   if (!exe || !paths) return { available: false };
 
-  const loaded = await loadedModules(exe);
+  const loaded = await loadedModules(exe, paths.dir);
   const loadedLc = new Set(loaded.map((m) => m.toLowerCase()));
   const enabledLc = paths.parsed.enabled;
   const extensions = listExtDlls(paths.extDir).map((name) => ({
@@ -136,6 +182,8 @@ function setExtension(root, name, enabled) {
   if (!dir) throw new Error('No active PHP version.');
   const iniPath = ensureIni(dir) || path.join(dir, 'php.ini');
   if (!fs.existsSync(iniPath)) throw new Error('php.ini not found for the active PHP version.');
+  // Make sure the extension we're about to enable can actually be found.
+  if (enabled) ensureExtensionDir(iniPath, dir);
 
   const directive = /^opcache$/i.test(name) ? 'zend_extension' : 'extension';
   const re = new RegExp(
