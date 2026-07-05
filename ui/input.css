@@ -488,23 +488,27 @@ body.light .dot.off, body.light .dot.stopped {
 .quick-title { font-size: 13px; font-weight: 600; }
 .quick-sub { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.svc-group { display: inline-flex; gap: 4px; }
+/* Docker Desktop-style controls: flat rounded squares in a tight cluster,
+   blue primary play; disabled keeps the square and only dims the glyph. */
+.svc-group { display: inline-flex; gap: 2px; }
 .svc-btn {
-  width: 34px;
+  width: 32px;
   height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
-  border: 1px solid var(--border);
+  border: 0;
+  border-radius: 4px;
   background: var(--bg-hover);
   color: var(--text);
   cursor: pointer;
+  transition: filter 0.12s;
 }
-.svc-btn:hover:not(:disabled) { border-color: var(--primary); }
-.svc-btn:disabled { opacity: 0.35; cursor: default; }
-.svc-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-.svc-btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+.svc-btn:hover:not(:disabled) { filter: brightness(1.25); }
+.svc-btn:disabled { cursor: default; }
+.svc-btn:disabled svg { opacity: 0.35; }
+.svc-btn.primary { background: #1d63ed; color: #fff; }
+.svc-btn.primary:hover:not(:disabled) { filter: brightness(1.12); }
 
 .pkg-tile { cursor: default; }
 .pkg-tile:hover { border-color: var(--border); filter: none; }
