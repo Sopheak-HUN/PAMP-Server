@@ -17,6 +17,7 @@ const DEFAULTS = {
   runAtStartup: false,      // launch PAMP at Windows login
   runMinimized: false,      // start the window minimized
   autoStartServices: false, // start every service with an active version on launch
+  closeToTray: true,        // closing the window hides to the tray instead of quitting
   documentRoot: '',         // nginx web root ('' = the build's default html folder)
   dataDir: '',              // MySQL/Redis data location ('' = <stack root>\data)
 };
