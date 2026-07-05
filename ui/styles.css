@@ -1230,6 +1230,56 @@ body.light .dot.off, body.light .dot.stopped {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.svc-group {
+  display: inline-flex;
+  gap: 2px;
+}
+.svc-btn {
+  width: 32px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text);
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+.svc-btn:hover:not(:disabled) {
+  filter: brightness(1.25);
+}
+.svc-btn:disabled {
+  cursor: default;
+}
+.svc-btn:disabled svg {
+  opacity: 0.35;
+}
+.svc-btn.primary {
+  background: #1d63ed;
+  color: #fff;
+}
+.svc-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.pkg-tile {
+  cursor: default;
+}
+.pkg-tile:hover {
+  border-color: var(--border);
+  filter: none;
+}
+.pkg-tile .quick-body {
+  flex: 1;
+}
+.pkg-action {
+  flex: none;
+  margin-left: auto;
+}
+.pkg-ver {
+  margin-left: 8px;
+}
 .laravel-form {
   display: flex;
   align-items: center;
@@ -1323,9 +1373,16 @@ body.light .dot.off, body.light .dot.stopped {
 }
 .btn-ghost {
   background: transparent;
+  border-color: var(--text-dim);
+  @supports (color: color-mix(in lab, red, red)) {
+    border-color: color-mix(in srgb, var(--text-dim) 40%, transparent);
+  }
+  color: var(--text-dim);
 }
 .btn-ghost:hover {
   background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-dim);
 }
 .dl-row {
   display: flex;
@@ -1469,7 +1526,7 @@ body.light .dot.off, body.light .dot.stopped {
   font-size: 13.5px;
   cursor: pointer;
 }
-.check-row input {
+.check-row input, .ext-toggle input, .follow input {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -1483,14 +1540,14 @@ body.light .dot.off, body.light .dot.stopped {
   position: relative;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.check-row input:hover {
+.check-row input:hover, .ext-toggle input:hover, .follow input:hover {
   border-color: var(--primary);
 }
-.check-row input:checked {
+.check-row input:checked, .ext-toggle input:checked, .follow input:checked {
   background-color: var(--primary);
   border-color: var(--primary);
 }
-.check-row input::after {
+.check-row input::after, .ext-toggle input::after, .follow input::after {
   content: "";
   width: 4px;
   height: 8px;
@@ -1500,7 +1557,7 @@ body.light .dot.off, body.light .dot.stopped {
   opacity: 0;
   transition: opacity 0.1s ease;
 }
-.check-row input:checked::after {
+.check-row input:checked::after, .ext-toggle input:checked::after, .follow input:checked::after {
   opacity: 1;
 }
 .folder-info {
