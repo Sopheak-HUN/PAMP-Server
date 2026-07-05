@@ -10,9 +10,8 @@
     "dist": "npm run build:css && electron-builder --win"
   },
   "build": {
-    "appId": "com.turbotech.pamp",
+    "appId": "com.pamp",
     "productName": "PAMP",
-    "electronDist": "node_modules/electron/dist",
     "files": [
       "main.js",
       "preload.js",
