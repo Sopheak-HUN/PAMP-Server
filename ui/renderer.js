@@ -34,8 +34,8 @@ const SCAFFOLDS = {
   vite:   { page: 'node',   logo: 'vite',   title: 'qtVite',   sub: 'qtViteSub',   needName: true,
             templates: ['vanilla', 'vanilla-ts', 'react', 'react-ts', 'vue', 'vue-ts', 'svelte', 'svelte-ts'] },
   venv:   { page: 'python', logo: 'python', title: 'qtVenv',   sub: 'qtVenvSub',   dirOnly: true },
-  django: { page: 'python', logo: 'python', title: 'qtDjango', sub: 'qtDjangoSub', needName: true },
-  spring: { page: 'java',   logo: 'java',   title: 'qtSpring', sub: 'qtSpringSub', needName: true },
+  django: { page: 'python', logo: 'django', title: 'qtDjango', sub: 'qtDjangoSub', needName: true },
+  spring: { page: 'java',   logo: 'spring', title: 'qtSpring', sub: 'qtSpringSub', needName: true },
   dotnet: { page: 'dotnet', logo: 'dotnet', title: 'qtDotnetNew', sub: 'qtDotnetNewSub', needName: true,
             templates: ['console', 'webapi', 'mvc', 'blazor', 'classlib', 'worker'] },
 };
