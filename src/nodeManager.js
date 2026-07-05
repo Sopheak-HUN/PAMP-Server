@@ -92,4 +92,4 @@ async function uninstall(root, pkg, onLog) {
   return { pkg };
 }
 
-module.exports = { info, install, uninstall };
+module.exports = { info, install, uninstall, npmCtx };

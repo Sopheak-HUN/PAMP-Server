@@ -259,4 +259,6 @@ module.exports = {
   createLaravel,
   openPhpMyAdmin,
   stopServers,
+  download,
+  extractZip,
 };

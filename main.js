@@ -11,6 +11,7 @@ const downloads = require('./src/downloadManager');
 const php = require('./src/phpManager');
 const quick = require('./src/quickTools');
 const node = require('./src/nodeManager');
+const scaffold = require('./src/scaffold');
 
 const fs = require('fs');
 
@@ -166,6 +167,10 @@ ipcMain.handle('quick:pma', async () => {
   await shell.openExternal(await quick.openPhpMyAdmin(ROOT, quickProgress('pma')));
   return true;
 });
+
+// Project scaffolds (per-runtime quick tools); output streams on quick:log.
+ipcMain.handle('scaffold:create', async (_e, action, opts) =>
+  scaffold.create(ROOT, action, opts, quickLog(`scaffold-${action}`)));
 
 // Node.js global package management (active version only). Install/uninstall
 // stream npm output to the renderer on node:log.
