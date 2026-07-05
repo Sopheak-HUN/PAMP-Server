@@ -382,6 +382,74 @@ body.light .dot.off, body.light .dot.stopped {
 
 .placeholder { padding: 22px 8px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
 
+/* ---------------- php extensions + config ---------------- */
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--primary);
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration: underline; }
+
+.ext-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ext-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  font-size: 12.5px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+}
+.ext-chip .ext-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; }
+.ext-more { cursor: pointer; color: var(--text-dim); }
+.ext-more:hover { color: var(--text); }
+
+.ext-manage-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px 16px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 4px 2px;
+}
+.ext-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.ext-toggle input { cursor: pointer; }
+.ext-hint { margin-top: 12px; }
+
+.config-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.config-row:last-child { border-bottom: none; }
+.config-label { font-size: 13px; font-weight: 500; }
+.config-val { font-size: 12.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.config-actions { display: flex; gap: 6px; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--text); filter: brightness(1.1); }
+
 /* ---------------- logs ---------------- */
 
 .follow { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); cursor: pointer; }

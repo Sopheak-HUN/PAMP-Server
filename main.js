@@ -8,6 +8,7 @@ const services = require('./src/serviceManager');
 const pathMgr = require('./src/pathManager');
 const settings = require('./src/settingsManager');
 const downloads = require('./src/downloadManager');
+const php = require('./src/phpManager');
 
 const fs = require('fs');
 
@@ -134,6 +135,16 @@ ipcMain.handle('logs:clear', async (_e, toolId) => {
 
 ipcMain.handle('path:status', async () => pathMgr.getStatus(ROOT, TOOLS));
 ipcMain.handle('path:setup', async () => pathMgr.setup(ROOT, TOOLS));
+
+// PHP extension + configuration management (active version only).
+ipcMain.handle('php:info', async () => php.info(ROOT));
+ipcMain.handle('php:setExtension', async (_e, name, enabled) => php.setExtension(ROOT, name, !!enabled));
+ipcMain.handle('php:open', async (_e, which) => {
+  const target = php.openTargetPath(ROOT, which);
+  const err = await shell.openPath(target);
+  if (err) throw new Error(err);
+  return true;
+});
 
 // Register (or remove) PAMP in the user's Windows startup entries. In dev the
 // login item is "electron.exe <app dir>"; in a packaged build it's the exe.

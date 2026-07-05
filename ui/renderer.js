@@ -13,7 +13,13 @@ const state = {
   settingsTab: 'general', // active tab on the settings page
   dlLists: {},          // toolId -> 'loading' | Error | [{version,label,...}]
   dlActive: {},         // toolId -> { version, phase, pct, received, total }
+  phpInfo: undefined,   // undefined = loading, { available, ... } once fetched
+  phpExpanded: false,   // "+N more" expanded state on the extensions card
+  phpManage: false,     // extensions card is in enable/disable mode
 };
+
+// How many extension chips to show before collapsing behind "+N more".
+const PHP_CHIP_LIMIT = 16;
 
 /* ---------------- i18n ---------------- */
 
@@ -94,6 +100,24 @@ const I18N = {
     browse: 'Browse…',
     reset: 'Reset',
     defaultVal: '(default)',
+    phpExtensions: 'PHP Extensions',
+    manageExt: 'Manage Extensions',
+    manageDone: 'Done',
+    extMore: '+ {n} more',
+    extLess: 'Show less',
+    extRestartHint: 'Restart PHP / your web server to apply changes.',
+    extNone: 'No extensions found in the ext folder.',
+    extEnabled: '{name} enabled',
+    extDisabled: '{name} disabled',
+    extFailed: 'Could not update {name}: {msg}',
+    phpConfig: 'Configuration',
+    phpIni: 'php.ini',
+    phpExtDir: 'Extensions Dir',
+    phpErrorLog: 'Error Log',
+    view: 'View',
+    editTitle: 'Edit',
+    openFolderTitle: 'Open folder',
+    phpNoActive: 'Activate a PHP version to manage its extensions and configuration.',
   },
   km: {
     brandSub: 'ផ្ទាំងគ្រប់គ្រង Dev Stack',
@@ -171,6 +195,24 @@ const I18N = {
     browse: 'រកមើល…',
     reset: 'កំណត់ឡើងវិញ',
     defaultVal: '(លំនាំដើម)',
+    phpExtensions: 'ផ្នែកបន្ថែម PHP',
+    manageExt: 'គ្រប់គ្រងផ្នែកបន្ថែម',
+    manageDone: 'រួចរាល់',
+    extMore: '+ {n} បន្ថែម',
+    extLess: 'បង្ហាញតិច',
+    extRestartHint: 'ចាប់ផ្តើម PHP / web server ឡើងវិញ ដើម្បីអនុវត្តការផ្លាស់ប្តូរ។',
+    extNone: 'រកមិនឃើញផ្នែកបន្ថែមក្នុងថត ext ទេ។',
+    extEnabled: 'បានបើក {name}',
+    extDisabled: 'បានបិទ {name}',
+    extFailed: 'មិនអាចធ្វើបច្ចុប្បន្នភាព {name}៖ {msg}',
+    phpConfig: 'ការកំណត់រចនាសម្ព័ន្ធ',
+    phpIni: 'php.ini',
+    phpExtDir: 'ថតផ្នែកបន្ថែម',
+    phpErrorLog: 'កំណត់ហេតុកំហុស',
+    view: 'មើល',
+    editTitle: 'កែសម្រួល',
+    openFolderTitle: 'បើកថត',
+    phpNoActive: 'ធ្វើឲ្យកំណែ PHP សកម្ម ដើម្បីគ្រប់គ្រងផ្នែកបន្ថែម និងការកំណត់រចនាសម្ព័ន្ធ។',
   },
 };
 
@@ -257,6 +299,21 @@ function renderSettingsIcon(sizeClass = '') {
     h('circle', { cx: '12', cy: '12', r: '3' }),
     h('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })
   );
+}
+
+function iconSvg(paths, size = 15) {
+  return h('svg', {
+    width: String(size), height: String(size), viewBox: '0 0 24 24',
+    fill: 'none', stroke: 'currentColor', 'stroke-width': '2',
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  }, ...paths.map((d) => h('path', { d })));
+}
+
+const ICON_PENCIL = ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z'];
+const ICON_FOLDER = ['M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'];
+
+function iconBtn(paths, title, onclick) {
+  return h('button', { class: 'icon-btn', title, onclick }, iconSvg(paths));
 }
 
 /* ---------------- settings ---------------- */
@@ -621,8 +678,122 @@ function renderDetail() {
         h('pre', { id: 'log-view', class: 'logs' }))
     : null;
 
-  root.replaceChildren(...[header, versionsCard, downloadCard, logsCard].filter(Boolean));
+  const phpCards = renderPhpCards(tl);
+
+  root.replaceChildren(...[header, ...phpCards, versionsCard, downloadCard, logsCard].filter(Boolean));
   if (logsCard) loadLogs(tl.id);
+}
+
+/* ---------------- php extensions + config ---------------- */
+
+async function loadPhpInfo() {
+  try {
+    state.phpInfo = await window.pamp.phpInfo();
+  } catch {
+    state.phpInfo = { available: false };
+  }
+  if (state.selected === 'php') renderDetail();
+}
+
+async function togglePhpExtension(name, enabled) {
+  try {
+    await window.pamp.phpSetExtension(name, enabled);
+    // Reflect the change locally so the checkbox stays in sync without a reload.
+    const ext = state.phpInfo.extensions.find((e) => e.name === name);
+    if (ext) ext.enabled = enabled;
+    toast(t(enabled ? 'extEnabled' : 'extDisabled', { name }), 'ok');
+  } catch (err) {
+    toast(t('extFailed', { name, msg: err.message }), 'err');
+    renderDetail(); // revert the checkbox to its real state
+  }
+}
+
+function renderPhpExtensionsCard() {
+  const info = state.phpInfo;
+  const head = h('div', { class: 'card-head' },
+    h('h2', { text: t('phpExtensions') }),
+    h('button', {
+      class: 'link-btn',
+      text: state.phpManage ? t('manageDone') : t('manageExt'),
+      onclick: () => { state.phpManage = !state.phpManage; renderDetail(); },
+    }));
+
+  if (state.phpManage) {
+    const items = (info.extensions || []).slice();
+    const body = items.length
+      ? h('div', { class: 'ext-manage-list' },
+          ...items.map((ext) =>
+            h('label', { class: 'ext-toggle' },
+              h('input', {
+                type: 'checkbox',
+                checked: ext.enabled ? 'checked' : null,
+                onchange: (e) => togglePhpExtension(ext.name, e.target.checked),
+              }),
+              h('span', { class: 'mono', text: ext.name }))))
+      : h('div', { class: 'muted', text: t('extNone') });
+    return h('section', { class: 'card' }, head, body,
+      h('div', { class: 'muted ext-hint', text: t('extRestartHint') }));
+  }
+
+  // View mode: chips of what's actually loaded (php -m), collapsed behind
+  // "+N more" past the limit.
+  const loaded = info.loaded && info.loaded.length
+    ? info.loaded
+    : (info.extensions || []).filter((e) => e.enabled).map((e) => e.name);
+  const shown = state.phpExpanded ? loaded : loaded.slice(0, PHP_CHIP_LIMIT);
+  const hidden = loaded.length - shown.length;
+
+  const chips = shown.map((name) =>
+    h('span', { class: 'ext-chip' }, h('span', { class: 'ext-dot' }), name));
+  if (hidden > 0) {
+    chips.push(h('span', {
+      class: 'ext-chip ext-more', text: t('extMore', { n: hidden }),
+      onclick: () => { state.phpExpanded = true; renderDetail(); },
+    }));
+  } else if (state.phpExpanded && loaded.length > PHP_CHIP_LIMIT) {
+    chips.push(h('span', {
+      class: 'ext-chip ext-more', text: t('extLess'),
+      onclick: () => { state.phpExpanded = false; renderDetail(); },
+    }));
+  }
+
+  return h('section', { class: 'card' }, head, h('div', { class: 'ext-chips' }, ...chips));
+}
+
+function renderPhpConfigCard() {
+  const info = state.phpInfo;
+  const configRow = (label, value, ...actions) =>
+    h('div', { class: 'config-row' },
+      h('div', { class: 'config-label', text: label }),
+      h('div', { class: 'config-val mono', title: value, text: value }),
+      h('div', { class: 'config-actions' }, ...actions));
+
+  const open = (which) => window.pamp.phpOpen(which).catch((err) => toast(err.message, 'err'));
+
+  return h('section', { class: 'card' },
+    h('div', { class: 'card-head' }, h('h2', { text: t('phpConfig') })),
+    configRow(t('phpIni'), info.iniPath,
+      iconBtn(ICON_PENCIL, t('editTitle'), () => open('ini'))),
+    configRow(t('phpExtDir'), info.extDir,
+      iconBtn(ICON_FOLDER, t('openFolderTitle'), () => open('extDir')),
+      iconBtn(ICON_PENCIL, t('editTitle'), () => open('ini'))),
+    configRow(t('phpErrorLog'), info.errorLog,
+      h('button', { class: 'btn btn-small', text: t('view'), onclick: () => open('errorLog') })));
+}
+
+// The PHP-only extensions + configuration cards, or null for other tools /
+// while info is still loading / when no version is active.
+function renderPhpCards(tl) {
+  if (tl.id !== 'php') return [];
+  const info = state.phpInfo;
+  if (info === undefined) {
+    return [h('section', { class: 'card' }, h('div', { class: 'muted', text: t('loading') }))];
+  }
+  if (!info.available) {
+    return [h('section', { class: 'card' },
+      h('div', { class: 'placeholder' }, h('p', { class: 'muted', text: t('phpNoActive') })))];
+  }
+  return [renderPhpExtensionsCard(), renderPhpConfigCard()];
 }
 
 /* ---------------- download card ---------------- */
@@ -737,8 +908,15 @@ function appendLog({ toolId, ts, line }) {
 
 function select(id) {
   state.selected = id;
+  if (id === 'php') {
+    // Reset the PHP panel to a clean loading state, then fetch fresh info.
+    state.phpInfo = undefined;
+    state.phpManage = false;
+    state.phpExpanded = false;
+  }
   renderSidebar();
   renderDetail();
+  if (id === 'php') loadPhpInfo();
 }
 
 async function refresh(keepSelection = true) {
@@ -749,6 +927,8 @@ async function refresh(keepSelection = true) {
     : (state.tools[0] && state.tools[0].id);
   renderSidebar();
   renderDetail();
+  // The active PHP version (and thus its ini/extensions) may have changed.
+  if (state.selected === 'php') loadPhpInfo();
 }
 
 async function refreshStatusOnly() {
