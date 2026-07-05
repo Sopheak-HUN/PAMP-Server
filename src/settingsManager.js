@@ -11,13 +11,14 @@ const DEFAULT_PORTS = Object.fromEntries(
 
 // Persisted next to the app so the whole stack stays portable.
 const DEFAULTS = {
-  theme: 'dark',
+  theme: 'light',
   lang: 'en',
   ports: DEFAULT_PORTS,
   runAtStartup: false,      // launch PAMP at Windows login
   runMinimized: false,      // start the window minimized
   autoStartServices: false, // start every service with an active version on launch
   closeToTray: true,        // closing the window hides to the tray instead of quitting
+  setupDone: false,         // first-run wizard completed (or skipped)
   documentRoot: '',         // nginx web root ('' = the build's default html folder)
   dataDir: '',              // MySQL/Redis data location ('' = <stack root>\data)
 };

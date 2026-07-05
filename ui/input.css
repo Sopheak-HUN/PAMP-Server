@@ -516,6 +516,35 @@ body.light .dot.off, body.light .dot.stopped {
 .pkg-action { flex: none; margin-left: auto; }
 .pkg-ver { margin-left: 8px; }
 
+/* ---------------- first-run wizard ---------------- */
+.wizard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 14, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+}
+.wizard {
+  width: 540px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+}
+.wizard-title { text-align: center; font-size: 18px; }
+.wizard-logo { width: 64px; height: 64px; margin: 0 auto; display: block; }
+.wizard-body { min-height: 190px; display: flex; flex-direction: column; gap: 10px; }
+.wizard-steps { display: flex; gap: 6px; justify-content: center; }
+.wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.wizard-dot.on { background: var(--primary); }
+.wizard-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
 .laravel-form { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .q-input {
   flex: 1;

@@ -9,7 +9,7 @@ const state = {
   status: {},           // toolId -> { state, managed, pid, port } (services only)
   selected: null,       // toolId shown in the detail pane, or SETTINGS_VIEW
   logsFollow: true,
-  settings: { theme: 'dark', lang: 'en' },
+  settings: { theme: 'light', lang: 'en' },
   settingsTab: 'general', // active tab on the settings page
   dlLists: {},          // toolId -> 'loading' | Error | [{version,label,...}]
   dlActive: {},         // toolId -> { version, phase, pct, received, total }
@@ -27,6 +27,8 @@ const state = {
   nodeLog: [],          // streamed npm output lines
   quickLogTask: '',     // task the quickLog lines belong to (routes the log pane)
   scaffold: { action: null, name: '', dir: '', template: '' }, // open scaffold form
+  wizardOpen: false,    // first-run setup wizard overlay
+  wizardStep: 0,
 };
 
 // Per-runtime project scaffolds shown as Quick Tools on the tool's page.
@@ -190,6 +192,16 @@ const I18N = {
     pkgInstallDone: '{name} installed.',
     pkgRemoveDone: '{name} removed.',
     pkgFailed: 'Could not update {name}: {msg}',
+    wzWelcomeTitle: 'Welcome to PAMP',
+    wzWelcomeSub: 'A portable dev stack for Windows. Pick your language and theme to get started.',
+    wzStartupTitle: 'Startup behavior',
+    wzFoldersSub: 'Where new projects and service data are stored — you can change these anytime in Settings.',
+    wzPathTitle: 'Terminal access',
+    wzPathSub: 'Add the active tool versions to your user PATH so php, node, python and friends work in any terminal.',
+    wzBack: 'Back',
+    wzNext: 'Next',
+    wzFinish: 'Finish',
+    wzSkip: 'Skip setup',
   },
   km: {
     brandSub: 'ផ្ទាំងគ្រប់គ្រង Dev Stack',
@@ -329,6 +341,16 @@ const I18N = {
     pkgInstallDone: 'បានដំឡើង {name}។',
     pkgRemoveDone: 'បានលុប {name}។',
     pkgFailed: 'មិនអាចធ្វើបច្ចុប្បន្នភាព {name}៖ {msg}',
+    wzWelcomeTitle: 'សូមស្វាគមន៍មកកាន់ PAMP',
+    wzWelcomeSub: 'Dev stack ចល័តសម្រាប់ Windows។ ជ្រើសរើសភាសា និងធីម ដើម្បីចាប់ផ្តើម។',
+    wzStartupTitle: 'ឥរិយាបថពេលចាប់ផ្តើម',
+    wzFoldersSub: 'ទីតាំងរក្សាទុកគម្រោងថ្មី និងទិន្នន័យសេវាកម្ម — អាចប្តូរនៅពេលក្រោយក្នុងការកំណត់។',
+    wzPathTitle: 'ការប្រើក្នុង Terminal',
+    wzPathSub: 'បន្ថែមកំណែឧបករណ៍សកម្មទៅ PATH ដើម្បីឲ្យ php, node, python ដំណើរការក្នុង terminal គ្រប់ទីកន្លែង។',
+    wzBack: 'ថយក្រោយ',
+    wzNext: 'បន្ទាប់',
+    wzFinish: 'បញ្ចប់',
+    wzSkip: 'រំលងការដំឡើង',
   },
 };
 
@@ -610,6 +632,109 @@ async function savePort(toolId, value) {
   toast(t('portSaved', { name: tool(toolId).name, port: n }), 'ok');
   // Reload tools so the "Service · port N" headers reflect the change.
   await refresh();
+}
+
+/* ---------------- first-run setup wizard ---------------- */
+
+const WIZARD_STEPS = 4;
+
+// Wizard controls persist immediately (same as the Settings page), then
+// re-render the overlay so labels follow live language/theme switches.
+function wizardSave(patch) {
+  saveSettings(patch).then(() => renderWizard());
+}
+
+function renderWizard() {
+  const old = $('#wizard-overlay');
+  if (old) old.remove();
+  if (!state.wizardOpen) return;
+
+  const s = state.settings;
+  const step = state.wizardStep;
+
+  const seg = (options, current, onpick) =>
+    h('div', { class: 'seg' }, ...options.map((o) =>
+      h('button', { class: `seg-btn ${current === o.value ? 'on' : ''}`, text: o.label, onclick: () => onpick(o.value) })));
+  const check = (key, label) =>
+    h('label', { class: 'check-row' },
+      h('input', { type: 'checkbox', checked: s[key] ? 'checked' : null,
+        onchange: (e) => wizardSave({ [key]: e.target.checked }) }),
+      label);
+  const folder = (key, label, hint) =>
+    h('div', { class: 'setting-row' },
+      h('div', { class: 'folder-info' },
+        h('div', { class: 'setting-label', text: label }),
+        h('div', { class: 'muted', text: hint }),
+        h('div', { class: 'path-val mono', text: s[key] || t('defaultVal') })),
+      h('div', { class: 'dl-row' },
+        h('button', {
+          class: 'btn btn-small', text: t('browse'),
+          onclick: async () => { const d = await window.pamp.pickFolder(); if (d) wizardSave({ [key]: d }); },
+        }),
+        s[key] && h('button', { class: 'btn btn-small btn-ghost', text: t('reset'), onclick: () => wizardSave({ [key]: '' }) })));
+
+  let title, body;
+  if (step === 0) {
+    title = t('wzWelcomeTitle');
+    body = [
+      h('img', { src: 'logo.png', class: 'wizard-logo', alt: 'PAMP' }),
+      h('p', { class: 'muted', style: 'text-align:center', text: t('wzWelcomeSub') }),
+      h('div', { class: 'setting-row' },
+        h('div', { class: 'setting-label', text: t('language') }),
+        seg([{ value: 'en', label: 'English' }, { value: 'km', label: 'ខ្មែរ' }], s.lang, (v) => wizardSave({ lang: v }))),
+      h('div', { class: 'setting-row' },
+        h('div', { class: 'setting-label', text: t('theme') }),
+        seg([{ value: 'dark', label: t('themeDark') }, { value: 'light', label: t('themeLight') }], s.theme, (v) => wizardSave({ theme: v }))),
+    ];
+  } else if (step === 1) {
+    title = t('wzStartupTitle');
+    body = [
+      check('runAtStartup', t('runAtStartup')),
+      check('runMinimized', t('runMinimized')),
+      check('autoStartServices', t('autoStart')),
+      check('closeToTray', t('closeToTray')),
+    ];
+  } else if (step === 2) {
+    title = t('folders');
+    body = [
+      h('p', { class: 'muted', text: t('wzFoldersSub') }),
+      folder('documentRoot', t('docRoot'), t('docRootHint')),
+      folder('dataDir', t('dataDir'), t('dataDirHint')),
+    ];
+  } else {
+    title = t('wzPathTitle');
+    body = [
+      h('p', { class: 'muted', text: t('wzPathSub') }),
+      h('button', { class: 'btn btn-primary', text: t('addToPath'), onclick: () => setupPath() }),
+    ];
+  }
+
+  const finish = async () => {
+    await saveSettings({ setupDone: true });
+    state.wizardOpen = false;
+    renderWizard();
+  };
+
+  const dots = h('div', { class: 'wizard-steps' },
+    ...Array.from({ length: WIZARD_STEPS }, (_, i) => h('span', { class: `wizard-dot ${i === step ? 'on' : ''}` })));
+
+  const actions = h('div', { class: 'wizard-actions' },
+    h('button', { class: 'link-btn', text: t('wzSkip'), onclick: finish }),
+    h('div', { class: 'dl-row' },
+      step > 0 && h('button', { class: 'btn btn-ghost', text: t('wzBack'),
+        onclick: () => { state.wizardStep--; renderWizard(); } }),
+      h('button', {
+        class: 'btn btn-primary', text: step === WIZARD_STEPS - 1 ? t('wzFinish') : t('wzNext'),
+        onclick: () => { if (step === WIZARD_STEPS - 1) finish(); else { state.wizardStep++; renderWizard(); } },
+      })));
+
+  document.body.appendChild(
+    h('div', { id: 'wizard-overlay', class: 'wizard-overlay' },
+      h('div', { class: 'wizard card' },
+        h('h2', { class: 'wizard-title', text: title }),
+        h('div', { class: 'wizard-body' }, ...body),
+        dots,
+        actions)));
 }
 
 /* ---------------- sidebar ---------------- */
@@ -1419,6 +1544,11 @@ async function setupPath() {
   } catch { /* fall back to defaults */ }
   applyTheme();
   renderStatic();
+  if (!state.settings.setupDone) {
+    state.wizardOpen = true;
+    state.wizardStep = 0;
+    renderWizard();
+  }
   window.pamp.onLog(appendLog);
   window.pamp.onDlProgress(onDlProgress);
   window.pamp.onQuickProgress(onQuickProgress);
