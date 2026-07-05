@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Tray, Menu } = require('electron');
 const path = require('path');
 const { TOOLS, byId } = require('./src/toolsConfig');
 const versions = require('./src/versionManager');
@@ -37,6 +37,8 @@ const ROOT = resolveRoot();
 const SETTINGS_DIR = app.isPackaged ? ROOT : APP_DIR;
 
 let win = null;
+let tray = null;
+let isQuitting = false;
 
 function createWindow() {
   const s = settings.get(SETTINGS_DIR);
@@ -58,7 +60,69 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(__dirname, 'ui', 'index.html'));
+  // With "close to tray" on, the X button hides the window and PAMP keeps
+  // running in the tray; quitting goes through the tray menu (or disables it).
+  win.on('close', (e) => {
+    if (!isQuitting && settings.get(SETTINGS_DIR).closeToTray) {
+      e.preventDefault();
+      win.hide();
+    }
+  });
   win.on('closed', () => { win = null; });
+}
+
+function showWindow() {
+  if (!win) { createWindow(); return; }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+/* ---------------- tray ---------------- */
+
+const TRAY_I18N = {
+  en: { open: 'Open PAMP', startAll: 'Start All Services', stopAll: 'Stop All Services', quit: 'Quit PAMP' },
+  km: { open: 'បើក PAMP', startAll: 'ចាប់ផ្តើមសេវាកម្មទាំងអស់', stopAll: 'បញ្ឈប់សេវាកម្មទាំងអស់', quit: 'ចាកចេញពី PAMP' },
+};
+
+async function startAllServices() {
+  for (const t of TOOLS.filter((x) => x.kind === 'service')) {
+    try {
+      const et = effectiveTool(t.id);
+      const st = await services.getStatus(et);
+      if (st.state === 'stopped' && versions.currentExe(ROOT, et)) {
+        await services.start(ROOT, et, serviceOpts());
+      }
+    } catch { /* reported in the service's log buffer */ }
+  }
+}
+
+async function stopAllServices() {
+  for (const t of TOOLS.filter((x) => x.kind === 'service')) {
+    try {
+      const et = effectiveTool(t.id);
+      if ((await services.getStatus(et)).state === 'running') await services.stop(ROOT, et);
+    } catch { /* reported in the service's log buffer */ }
+  }
+}
+
+function buildTrayMenu() {
+  const L = TRAY_I18N[settings.get(SETTINGS_DIR).lang] || TRAY_I18N.en;
+  return Menu.buildFromTemplate([
+    { label: L.open, click: showWindow },
+    { type: 'separator' },
+    { label: L.startAll, click: () => { startAllServices(); } },
+    { label: L.stopAll, click: () => { stopAllServices(); } },
+    { type: 'separator' },
+    { label: L.quit, click: () => { isQuitting = true; app.quit(); } },
+  ]);
+}
+
+function createTray() {
+  tray = new Tray(path.join(__dirname, 'ui', 'logo.ico'));
+  tray.setToolTip('PAMP — Dev Stack Control Panel');
+  tray.setContextMenu(buildTrayMenu());
+  tray.on('click', showWindow);
 }
 
 services.onLog((toolId, entry) => {
@@ -193,6 +257,7 @@ ipcMain.handle('settings:get', async () => settings.get(SETTINGS_DIR));
 ipcMain.handle('settings:set', async (_e, patch) => {
   const next = settings.set(SETTINGS_DIR, patch);
   applyLoginItem(next);
+  if (tray) tray.setContextMenu(buildTrayMenu()); // language may have changed
   return next;
 });
 
@@ -233,34 +298,39 @@ ipcMain.handle('dl:install', async (_e, toolId, version) => {
   return downloads.install(ROOT, tool, version, onProgress);
 });
 
+// A second launch (e.g. while hidden in the tray) surfaces the existing
+// window instead of starting a duplicate app fighting over the same ports.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', showWindow);
+}
+
 app.whenReady().then(async () => {
   versions.ensureToolDirs(ROOT, TOOLS);
   createWindow();
+  createTray();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
   const s = settings.get(SETTINGS_DIR);
   applyLoginItem(s);
-  if (s.runMinimized || process.argv.includes('--minimized')) win.minimize();
+  if (s.runMinimized || process.argv.includes('--minimized')) {
+    if (s.closeToTray) win.hide();
+    else win.minimize();
+  }
 
   // Laragon-style "Start All automatically": bring up every service that has
   // an active version and isn't already running (e.g. survived last session).
-  if (s.autoStartServices) {
-    for (const t of TOOLS.filter((x) => x.kind === 'service')) {
-      try {
-        const et = effectiveTool(t.id);
-        const st = await services.getStatus(et);
-        if (st.state === 'stopped' && versions.currentExe(ROOT, et)) {
-          await services.start(ROOT, et, serviceOpts());
-        }
-      } catch { /* reported in the service's log buffer */ }
-    }
-  }
+  if (s.autoStartServices) await startAllServices();
 });
 
 // Kill the php -S servers (phpinfo / phpMyAdmin) before exit.
-app.on('before-quit', () => quick.stopServers());
+app.on('before-quit', () => {
+  isQuitting = true;
+  quick.stopServers();
+});
 
 app.on('window-all-closed', () => {
   // Services are independent processes and keep running; the app finds them
