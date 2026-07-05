@@ -14,9 +14,8 @@ Only the latest release receives security fixes.
 Please **do not** open a public issue for security problems.
 
 - Use GitHub's private reporting: **Security → Report a vulnerability** on
-  [github.com/Sopheak-HUN/PAMP-Server](https://github.com/Sopheak-HUN/PAMP-Server/security), or
-- Email **turbotech.kh@gmail.com** with steps to reproduce.
-
+  [github.com/Sopheak-HUN/PAMP-Server](https://github.com/Sopheak-HUN/PAMP-Server/security)
+  
 You should get a first response within a few days. Please give us a reasonable
 window to ship a fix before disclosing publicly.
 
