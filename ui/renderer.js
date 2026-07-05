@@ -324,6 +324,8 @@ function h(tag, attrs, ...children) {
       el.textContent = v;
     } else if (k.startsWith('on')) {
       el.addEventListener(k.slice(2), v);
+    } else if (k === 'checked') {
+      el.checked = !!v;
     } else if (v !== null && v !== undefined) {
       el.setAttribute(k, v);
     }

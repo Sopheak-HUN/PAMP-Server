@@ -583,8 +583,16 @@ body.light .dot.off, body.light .dot.stopped {
 .btn-small { padding: 4px 12px; font-size: 12px; }
 .btn-primary { background: var(--primary); border-color: transparent; color: #fff; font-weight: 600; }
 .btn-danger { background: var(--err); border-color: transparent; color: #fff; font-weight: 600; }
-.btn-ghost { background: transparent; }
-.btn-ghost:hover { background: var(--bg-hover); }
+.btn-ghost {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--text-dim) 40%, transparent);
+  color: var(--text-dim);
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-dim);
+}
 
 /* ---------------- download ---------------- */
 
@@ -725,7 +733,9 @@ body.light .dot.off, body.light .dot.stopped {
   font-size: 13.5px;
   cursor: pointer;
 }
-.check-row input {
+.check-row input,
+.ext-toggle input,
+.follow input {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -740,17 +750,23 @@ body.light .dot.off, body.light .dot.stopped {
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.check-row input:hover {
+.check-row input:hover,
+.ext-toggle input:hover,
+.follow input:hover {
   border-color: var(--primary);
 }
 
-.check-row input:checked {
+.check-row input:checked,
+.ext-toggle input:checked,
+.follow input:checked {
   background-color: var(--primary);
   border-color: var(--primary);
 }
 
 /* Draw custom checkmark */
-.check-row input::after {
+.check-row input::after,
+.ext-toggle input::after,
+.follow input::after {
   content: "";
   width: 4px;
   height: 8px;
@@ -761,7 +777,9 @@ body.light .dot.off, body.light .dot.stopped {
   transition: opacity 0.1s ease;
 }
 
-.check-row input:checked::after {
+.check-row input:checked::after,
+.ext-toggle input:checked::after,
+.follow input:checked::after {
   opacity: 1;
 }
 
