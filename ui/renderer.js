@@ -16,6 +16,12 @@ const state = {
   phpInfo: undefined,   // undefined = loading, { available, ... } once fetched
   phpExpanded: false,   // "+N more" expanded state on the extensions card
   phpManage: false,     // extensions card is in enable/disable mode
+  composer: null,       // { installed, version } from composerStatus()
+  quickBusy: {},        // quick-tool task -> progress label while running
+  quickLog: [],         // streamed lines from the Laravel scaffold
+  laravelForm: false,   // inline "create project" form is open
+  laravelName: '',
+  laravelDir: '',       // chosen parent folder ('' = <stack>\www)
 };
 
 // How many extension chips to show before collapsing behind "+N more".
@@ -118,6 +124,26 @@ const I18N = {
     editTitle: 'Edit',
     openFolderTitle: 'Open folder',
     phpNoActive: 'Activate a PHP version to manage its extensions and configuration.',
+    quickTools: 'Quick Tools',
+    qtPhpinfo: 'phpinfo();',
+    qtPhpinfoSub: 'Open the PHP info page',
+    qtComposer: 'Install Composer',
+    qtComposerInstalled: 'Composer {v}',
+    qtComposerSub: 'PHP dependency manager',
+    qtLaravel: 'Create Laravel project',
+    qtLaravelSub: 'composer create-project',
+    qtPma: 'phpMyAdmin',
+    qtPmaSub: 'Database web UI',
+    qtWorking: 'Working…',
+    qtOpening: 'Opening…',
+    qtComposerDone: 'Composer {v} installed.',
+    qtPmaOpening: 'Starting phpMyAdmin…',
+    qtProjectName: 'Project name',
+    qtChooseFolder: 'Choose folder…',
+    qtCreate: 'Create',
+    qtNeedName: 'Enter a project name.',
+    qtLaravelDone: 'Laravel project created at {path}',
+    qtNeedMysql: 'phpMyAdmin needs MySQL running — start it from the MySQL tab to log in.',
   },
   km: {
     brandSub: 'ផ្ទាំងគ្រប់គ្រង Dev Stack',
@@ -213,6 +239,26 @@ const I18N = {
     editTitle: 'កែសម្រួល',
     openFolderTitle: 'បើកថត',
     phpNoActive: 'ធ្វើឲ្យកំណែ PHP សកម្ម ដើម្បីគ្រប់គ្រងផ្នែកបន្ថែម និងការកំណត់រចនាសម្ព័ន្ធ។',
+    quickTools: 'ឧបករណ៍រហ័ស',
+    qtPhpinfo: 'phpinfo();',
+    qtPhpinfoSub: 'បើកទំព័រព័ត៌មាន PHP',
+    qtComposer: 'ដំឡើង Composer',
+    qtComposerInstalled: 'Composer {v}',
+    qtComposerSub: 'កម្មវិធីគ្រប់គ្រង dependency របស់ PHP',
+    qtLaravel: 'បង្កើតគម្រោង Laravel',
+    qtLaravelSub: 'composer create-project',
+    qtPma: 'phpMyAdmin',
+    qtPmaSub: 'UI គ្រប់គ្រងទិន្នន័យ',
+    qtWorking: 'កំពុងដំណើរការ…',
+    qtOpening: 'កំពុងបើក…',
+    qtComposerDone: 'បានដំឡើង Composer {v}។',
+    qtPmaOpening: 'កំពុងចាប់ផ្តើម phpMyAdmin…',
+    qtProjectName: 'ឈ្មោះគម្រោង',
+    qtChooseFolder: 'ជ្រើសរើសថត…',
+    qtCreate: 'បង្កើត',
+    qtNeedName: 'បញ្ចូលឈ្មោះគម្រោង។',
+    qtLaravelDone: 'បានបង្កើតគម្រោង Laravel នៅ {path}',
+    qtNeedMysql: 'phpMyAdmin ត្រូវការ MySQL ដំណើរការ — ចាប់ផ្តើមវានៅផ្ទាំង MySQL ដើម្បីចូល។',
   },
 };
 
@@ -688,7 +734,9 @@ function renderDetail() {
 
 async function loadPhpInfo() {
   try {
-    state.phpInfo = await window.pamp.phpInfo();
+    const [info, composer] = await Promise.all([window.pamp.phpInfo(), window.pamp.composerStatus()]);
+    state.phpInfo = info;
+    state.composer = composer;
   } catch {
     state.phpInfo = { available: false };
   }
@@ -781,6 +829,105 @@ function renderPhpConfigCard() {
       h('button', { class: 'btn btn-small', text: t('view'), onclick: () => open('errorLog') })));
 }
 
+/* ---------------- php quick tools ---------------- */
+
+async function runQuick(task, fn, doneMsg) {
+  if (state.quickBusy[task]) return;
+  state.quickBusy[task] = t('qtWorking');
+  renderDetail();
+  try {
+    await fn();
+    if (doneMsg) toast(doneMsg(), 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+  } finally {
+    delete state.quickBusy[task];
+    renderDetail();
+  }
+}
+
+async function createLaravelProject() {
+  const name = (state.laravelName || '').trim();
+  if (!name) { toast(t('qtNeedName'), 'err'); return; }
+  state.quickLog = [];
+  await runQuick('laravel', async () => {
+    const r = await window.pamp.createLaravel({ dir: state.laravelDir || '', name });
+    toast(t('qtLaravelDone', { path: r.path }), 'ok');
+    state.laravelForm = false;
+  });
+}
+
+// Progress events from Composer / phpMyAdmin update the tile's subtext in place
+// so a long download doesn't re-render the whole pane on every chunk.
+function onQuickProgress(p) {
+  const label = p.phase === 'extract'
+    ? t('dlExtracting')
+    : t('dlDownloading', { pct: p.total ? Math.round((p.received / p.total) * 100) : 0 });
+  state.quickBusy[p.task] = label;
+  const el = $(`#qsub-${p.task}`);
+  if (el) el.textContent = label;
+}
+
+function onQuickLog(p) {
+  state.quickLog.push(p.line);
+  if (state.quickLog.length > 400) state.quickLog.splice(0, state.quickLog.length - 400);
+  const pre = $('#quick-log');
+  if (pre) { pre.textContent = state.quickLog.join('\n'); pre.scrollTop = pre.scrollHeight; }
+  else if (state.selected === 'php') renderDetail();
+}
+
+function quickTile(task, icon, title, sub, onclick) {
+  const busy = state.quickBusy[task];
+  return h('button', {
+    class: `quick-tile ${busy ? 'busy' : ''}`,
+    disabled: busy ? 'disabled' : null,
+    onclick,
+  },
+    h('span', { class: 'quick-icon', text: icon }),
+    h('span', { class: 'quick-body' },
+      h('span', { class: 'quick-title', text: title }),
+      h('span', { class: 'quick-sub', id: busy ? `qsub-${task}` : null, text: busy || sub })));
+}
+
+function renderLaravelForm() {
+  return h('div', { class: 'laravel-form' },
+    h('input', {
+      class: 'q-input', type: 'text', placeholder: t('qtProjectName'),
+      value: state.laravelName || '',
+      oninput: (e) => { state.laravelName = e.target.value; },
+    }),
+    h('button', {
+      class: 'btn btn-small', text: state.laravelDir || t('qtChooseFolder'),
+      onclick: async () => { const d = await window.pamp.pickFolder(); if (d) { state.laravelDir = d; renderDetail(); } },
+    }),
+    h('button', { class: 'btn btn-primary btn-small', text: t('qtCreate'), onclick: () => createLaravelProject() }));
+}
+
+function renderQuickToolsCard() {
+  const comp = state.composer;
+  const composerTitle = comp && comp.installed
+    ? t('qtComposerInstalled', { v: comp.version || '?' })
+    : t('qtComposer');
+
+  const grid = h('div', { class: 'quick-grid' },
+    quickTile('phpinfo', 'ℹ️', t('qtPhpinfo'), t('qtPhpinfoSub'),
+      () => runQuick('phpinfo', () => window.pamp.quickPhpinfo())),
+    quickTile('composer', '📦', composerTitle, t('qtComposerSub'),
+      () => runQuick('composer', async () => {
+        const r = await window.pamp.installComposer();
+        state.composer = { installed: true, version: r.version };
+      }, () => t('qtComposerDone', { v: (state.composer && state.composer.version) || '' }))),
+    quickTile('laravel', '🚀', t('qtLaravel'), t('qtLaravelSub'),
+      () => { state.laravelForm = !state.laravelForm; renderDetail(); }),
+    quickTile('pma', '🗄️', t('qtPma'), t('qtPmaSub'),
+      () => runQuick('pma', () => window.pamp.openPhpMyAdmin(), () => t('qtNeedMysql'))));
+
+  const children = [h('div', { class: 'card-head' }, h('h2', { text: t('quickTools') })), grid];
+  if (state.laravelForm) children.push(renderLaravelForm());
+  if (state.quickLog.length) children.push(h('pre', { id: 'quick-log', class: 'quick-log', text: state.quickLog.join('\n') }));
+  return h('section', { class: 'card' }, ...children);
+}
+
 // The PHP-only extensions + configuration cards, or null for other tools /
 // while info is still loading / when no version is active.
 function renderPhpCards(tl) {
@@ -793,7 +940,7 @@ function renderPhpCards(tl) {
     return [h('section', { class: 'card' },
       h('div', { class: 'placeholder' }, h('p', { class: 'muted', text: t('phpNoActive') })))];
   }
-  return [renderPhpExtensionsCard(), renderPhpConfigCard()];
+  return [renderPhpExtensionsCard(), renderPhpConfigCard(), renderQuickToolsCard()];
 }
 
 /* ---------------- download card ---------------- */
@@ -1004,6 +1151,8 @@ async function setupPath() {
   renderStatic();
   window.pamp.onLog(appendLog);
   window.pamp.onDlProgress(onDlProgress);
+  window.pamp.onQuickProgress(onQuickProgress);
+  window.pamp.onQuickLog(onQuickLog);
   $('#btn-refresh').addEventListener('click', () => refresh());
   $('#btn-path-setup').addEventListener('click', setupPath);
   $('#btn-settings').addEventListener('click', () => select(SETTINGS_VIEW));

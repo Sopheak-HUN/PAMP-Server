@@ -9,6 +9,7 @@ const pathMgr = require('./src/pathManager');
 const settings = require('./src/settingsManager');
 const downloads = require('./src/downloadManager');
 const php = require('./src/phpManager');
+const quick = require('./src/quickTools');
 
 const fs = require('fs');
 
@@ -146,6 +147,25 @@ ipcMain.handle('php:open', async (_e, which) => {
   return true;
 });
 
+// Quick tools (PHP page). Long tasks stream progress/log to the renderer.
+function quickProgress(task) {
+  return (p) => { if (win && !win.isDestroyed()) win.webContents.send('quick:progress', { task, ...p }); };
+}
+function quickLog(task) {
+  return (line) => { if (win && !win.isDestroyed()) win.webContents.send('quick:log', { task, line }); };
+}
+ipcMain.handle('quick:composerStatus', async () => quick.composerStatus(ROOT));
+ipcMain.handle('quick:phpinfo', async () => {
+  await shell.openExternal(await quick.phpinfo(ROOT));
+  return true;
+});
+ipcMain.handle('quick:installComposer', async () => quick.installComposer(ROOT, quickProgress('composer')));
+ipcMain.handle('quick:createLaravel', async (_e, opts) => quick.createLaravel(ROOT, opts, quickLog('laravel')));
+ipcMain.handle('quick:pma', async () => {
+  await shell.openExternal(await quick.openPhpMyAdmin(ROOT, quickProgress('pma')));
+  return true;
+});
+
 // Register (or remove) PAMP in the user's Windows startup entries. In dev the
 // login item is "electron.exe <app dir>"; in a packaged build it's the exe.
 function applyLoginItem(s) {
@@ -223,6 +243,9 @@ app.whenReady().then(async () => {
     }
   }
 });
+
+// Kill the php -S servers (phpinfo / phpMyAdmin) before exit.
+app.on('before-quit', () => quick.stopServers());
 
 app.on('window-all-closed', () => {
   // Services are independent processes and keep running; the app finds them
