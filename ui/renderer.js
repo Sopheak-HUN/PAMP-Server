@@ -876,14 +876,14 @@ function onQuickLog(p) {
   else if (state.selected === 'php') renderDetail();
 }
 
-function quickTile(task, icon, title, sub, onclick) {
+function quickTile(task, logo, title, sub, onclick) {
   const busy = state.quickBusy[task];
   return h('button', {
     class: `quick-tile ${busy ? 'busy' : ''}`,
     disabled: busy ? 'disabled' : null,
     onclick,
   },
-    h('span', { class: 'quick-icon', text: icon }),
+    h('span', { class: 'quick-icon' }, h('img', { class: 'quick-logo', src: `logos/${logo}.svg`, alt: title })),
     h('span', { class: 'quick-body' },
       h('span', { class: 'quick-title', text: title }),
       h('span', { class: 'quick-sub', id: busy ? `qsub-${task}` : null, text: busy || sub })));
@@ -910,16 +910,16 @@ function renderQuickToolsCard() {
     : t('qtComposer');
 
   const grid = h('div', { class: 'quick-grid' },
-    quickTile('phpinfo', 'ℹ️', t('qtPhpinfo'), t('qtPhpinfoSub'),
+    quickTile('phpinfo', 'php', t('qtPhpinfo'), t('qtPhpinfoSub'),
       () => runQuick('phpinfo', () => window.pamp.quickPhpinfo())),
-    quickTile('composer', '📦', composerTitle, t('qtComposerSub'),
+    quickTile('composer', 'composer', composerTitle, t('qtComposerSub'),
       () => runQuick('composer', async () => {
         const r = await window.pamp.installComposer();
         state.composer = { installed: true, version: r.version };
       }, () => t('qtComposerDone', { v: (state.composer && state.composer.version) || '' }))),
-    quickTile('laravel', '🚀', t('qtLaravel'), t('qtLaravelSub'),
+    quickTile('laravel', 'laravel', t('qtLaravel'), t('qtLaravelSub'),
       () => { state.laravelForm = !state.laravelForm; renderDetail(); }),
-    quickTile('pma', '🗄️', t('qtPma'), t('qtPmaSub'),
+    quickTile('pma', 'phpmyadmin', t('qtPma'), t('qtPmaSub'),
       () => runQuick('pma', () => window.pamp.openPhpMyAdmin(), () => t('qtNeedMysql'))));
 
   const children = [h('div', { class: 'card-head' }, h('h2', { text: t('quickTools') })), grid];
