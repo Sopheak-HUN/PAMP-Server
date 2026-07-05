@@ -76,6 +76,8 @@ const I18N = {
     nowUsing: '{name}: now using {v}',
     starting: 'Starting {name}…',
     stopping: 'Stopping {name}…',
+    restart: 'Restart',
+    restarting: 'Restarting {name}…',
     pathOk: 'All tool folders are on your user PATH. Open a new terminal to use them.',
     pathPartial: 'PATH updated, but {n} entries could not be verified.',
     pathFailed: 'PATH setup failed: {msg}',
@@ -199,6 +201,8 @@ const I18N = {
     nowUsing: '{name}៖ ឥឡូវកំពុងប្រើ {v}',
     starting: 'កំពុងចាប់ផ្តើម {name}…',
     stopping: 'កំពុងបញ្ឈប់ {name}…',
+    restart: 'ចាប់ផ្តើមឡើងវិញ',
+    restarting: 'កំពុងចាប់ផ្តើម {name} ឡើងវិញ…',
     pathOk: 'ថតឧបករណ៍ទាំងអស់មាននៅក្នុង PATH របស់អ្នកហើយ។ បើក terminal ថ្មីដើម្បីប្រើ។',
     pathPartial: 'PATH បានធ្វើបច្ចុប្បន្នភាព ប៉ុន្តែ {n} ធាតុមិនអាចផ្ទៀងផ្ទាត់បានទេ។',
     pathFailed: 'ការកំណត់ PATH បរាជ័យ៖ {msg}',
@@ -379,6 +383,33 @@ const ICON_FOLDER = ['M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3
 
 function iconBtn(paths, title, onclick) {
   return h('button', { class: 'icon-btn', title, onclick }, iconSvg(paths));
+}
+
+// Compact play / restart / stop icon group for services. The play button is
+// the blue primary action while the service is stopped; restart and stop only
+// light up once it runs.
+function svcControls(toolId, running) {
+  const fillIcon = (...shapes) =>
+    h('svg', { width: '12', height: '12', viewBox: '0 0 24 24', fill: 'currentColor' }, ...shapes);
+  const playIcon = fillIcon(h('path', { d: 'M7 4.5v15l13-7.5z' }));
+  const stopIcon = fillIcon(h('rect', { x: '5.5', y: '5.5', width: '13', height: '13', rx: '2' }));
+  const restartIcon = h('svg', {
+    width: '13', height: '13', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    'stroke-width': '2.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  }, h('path', { d: 'M23 4v6h-6' }), h('path', { d: 'M20.49 15a9 9 0 1 1-2.12-9.36L23 10' }));
+
+  const btn = (title, icon, enabled, primary, onclick) =>
+    h('button', {
+      class: `svc-btn ${primary ? 'primary' : ''}`,
+      title,
+      disabled: enabled ? null : 'disabled',
+      onclick: (e) => { e.stopPropagation(); onclick(); },
+    }, icon);
+
+  return h('div', { class: 'svc-group' },
+    btn(t('start'), playIcon, !running, !running, () => startService(toolId)),
+    btn(t('restart'), restartIcon, running, false, () => restartService(toolId)),
+    btn(t('stop'), stopIcon, running, false, () => stopService(toolId)));
 }
 
 /* ---------------- settings ---------------- */
@@ -588,15 +619,7 @@ function renderDashboard(root) {
         running && st.port && h('span', { class: 'chip ok', text: `Port: ${st.port}` })
       ),
       h('div', { class: 'dashboard-card-actions' },
-        h('button', {
-          class: `btn btn-small ${running ? 'btn-danger' : 'btn-primary'}`,
-          text: running ? t('stop') : t('start'),
-          onclick: (e) => {
-            e.stopPropagation();
-            if (running) stopService(svc.id);
-            else startService(svc.id);
-          }
-        }),
+        svcControls(svc.id, running),
         h('button', {
           class: 'btn btn-small btn-ghost',
           text: t('openFolder'),
@@ -681,11 +704,7 @@ function renderDetail() {
             : st && st.state === 'error'
               ? `${t('errorState')} (Exit Code: ${st.code})`
               : t('stopped')),
-      tl.kind === 'service' && h('button', {
-        class: `btn ${running ? 'btn-danger' : 'btn-primary'}`,
-        onclick: () => (running ? stopService(tl.id) : startService(tl.id)),
-        text: running ? t('stop') : t('start'),
-      }),
+      tl.kind === 'service' && svcControls(tl.id, running),
       h('button', { class: 'btn btn-ghost', text: t('openFolder'), onclick: () => window.pamp.openDir(tl.id) }))
   );
 
@@ -1227,6 +1246,21 @@ async function stopService(toolId) {
     toast(t('stopping', { name: tool(toolId).name }));
     await window.pamp.stopService(toolId);
     await refreshStatusOnly();
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+}
+
+// stop() resolves only once the port is free, so chaining start right after
+// is safe.
+async function restartService(toolId) {
+  try {
+    toast(t('restarting', { name: tool(toolId).name }));
+    await window.pamp.stopService(toolId);
+    await refreshStatusOnly();
+    await window.pamp.startService(toolId);
+    setTimeout(refreshStatusOnly, 800);
+    setTimeout(refreshStatusOnly, 2500);
   } catch (err) {
     toast(err.message, 'err');
   }

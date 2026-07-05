@@ -488,6 +488,30 @@ body.light .dot.off, body.light .dot.stopped {
 .quick-title { font-size: 13px; font-weight: 600; }
 .quick-sub { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.svc-group { display: inline-flex; gap: 4px; }
+.svc-btn {
+  width: 34px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text);
+  cursor: pointer;
+}
+.svc-btn:hover:not(:disabled) { border-color: var(--primary); }
+.svc-btn:disabled { opacity: 0.35; cursor: default; }
+.svc-btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.svc-btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+.pkg-tile { cursor: default; }
+.pkg-tile:hover { border-color: var(--border); filter: none; }
+.pkg-tile .quick-body { flex: 1; }
+.pkg-action { flex: none; margin-left: auto; }
+.pkg-ver { margin-left: 8px; }
+
 .laravel-form { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .q-input {
   flex: 1;
