@@ -680,7 +680,7 @@ function renderDetail() {
 
   const phpCards = renderPhpCards(tl);
 
-  root.replaceChildren(...[header, ...phpCards, versionsCard, downloadCard, logsCard].filter(Boolean));
+  root.replaceChildren(...[header, versionsCard, downloadCard, ...phpCards, logsCard].filter(Boolean));
   if (logsCard) loadLogs(tl.id);
 }
 
